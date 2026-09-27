@@ -67,5 +67,15 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             Pageable pageable);
+
+    @Query("SELECT e FROM Exam e WHERE e.examDate >= :today ORDER BY e.examDate ASC")
+    List<Exam> findUpcomingExams(@Param("today") LocalDate today, Pageable pageable);
+
+    @Query("SELECT e FROM Exam e WHERE e.course.courseId IN :courseIds AND e.examDate >= :today ORDER BY e.examDate ASC")
+    List<Exam> findUpcomingExamsForCourseIds(@Param("courseIds") List<Long> courseIds, @Param("today") LocalDate today);
+
+    @Query("SELECT COUNT(e) FROM Exam e WHERE e.course.courseId IN :courseIds")
+    long countByCourseIds(@Param("courseIds") List<Long> courseIds);
 }
+
 

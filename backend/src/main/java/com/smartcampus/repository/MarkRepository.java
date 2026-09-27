@@ -65,5 +65,23 @@ public interface MarkRepository extends JpaRepository<Mark, Long> {
             @Param("examType") ExamType examType,
             @Param("semester") Integer semester,
             Pageable pageable);
+
+    @Query("SELECT COUNT(m), AVG(m.marksObtained) FROM Mark m")
+    List<Object[]> getOverallMarkStats();
+
+    @Query("SELECT c.courseId, c.courseCode, c.courseName, COUNT(m), AVG(m.marksObtained), MAX(m.marksObtained), MIN(m.marksObtained) " +
+           "FROM Mark m JOIN m.exam e JOIN e.course c " +
+           "GROUP BY c.courseId, c.courseCode, c.courseName ORDER BY c.courseName")
+    List<Object[]> getCoursePerformanceStats();
+
+    @Query("SELECT c.courseId, c.courseCode, c.courseName, COUNT(m), AVG(m.marksObtained), MAX(m.marksObtained), MIN(m.marksObtained) " +
+           "FROM Mark m JOIN m.exam e JOIN e.course c " +
+           "WHERE c.courseId IN :courseIds " +
+           "GROUP BY c.courseId, c.courseCode, c.courseName ORDER BY c.courseName")
+    List<Object[]> getCoursePerformanceStatsForCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    @Query("SELECT COUNT(m) FROM Mark m WHERE m.exam.course.courseId IN :courseIds")
+    long countMarksForCourseIds(@Param("courseIds") List<Long> courseIds);
 }
+
 

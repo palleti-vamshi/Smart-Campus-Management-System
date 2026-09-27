@@ -3,6 +3,7 @@ package com.smartcampus.entity;
 import com.smartcampus.entity.enums.DocumentStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class DocumentRequest {
 
     @Id
@@ -85,4 +87,9 @@ public class DocumentRequest {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "documentRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<DocumentRequestHistory> history = new java.util.ArrayList<>();
 }
+

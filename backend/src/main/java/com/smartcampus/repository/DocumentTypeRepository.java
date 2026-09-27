@@ -18,4 +18,6 @@ public interface DocumentTypeRepository extends JpaRepository<DocumentType, Long
     List<DocumentType> findByIsActiveTrue();
 
     boolean existsByDocumentName(String documentName);
+
+    boolean existsByDocumentNameAndDocumentTypeIdNot(String documentName, Long documentTypeId);
 }

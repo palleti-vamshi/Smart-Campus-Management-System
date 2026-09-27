@@ -100,6 +100,26 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
            "WHERE e.student.studentId = :studentId " +
            "GROUP BY e.course.courseId, e.course.courseCode, e.course.courseName")
     List<AttendanceSummaryResponse> getStudentAttendanceSummary(@Param("studentId") Long studentId);
+
+    @Query("SELECT COUNT(a), SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.PRESENT THEN 1L ELSE 0L END), " +
+           "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.ABSENT THEN 1L ELSE 0L END), " +
+           "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.LATE THEN 1L ELSE 0L END) " +
+           "FROM Attendance a")
+    List<Object[]> getOverallAttendanceStats();
+
+    @Query("SELECT p.programId, p.programCode, p.programName, COUNT(a), " +
+           "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.PRESENT THEN 1L ELSE 0L END) " +
+           "FROM Attendance a JOIN a.student s JOIN s.program p " +
+           "GROUP BY p.programId, p.programCode, p.programName ORDER BY p.programName")
+    List<Object[]> getAttendanceStatsByProgram();
+
+    @Query("SELECT a.course.courseId, a.course.courseCode, a.course.courseName, COUNT(a), " +
+           "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.PRESENT THEN 1L ELSE 0L END), " +
+           "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.ABSENT THEN 1L ELSE 0L END) " +
+           "FROM Attendance a WHERE a.course.courseId IN :courseIds " +
+           "GROUP BY a.course.courseId, a.course.courseCode, a.course.courseName ORDER BY a.course.courseName")
+    List<Object[]> getAttendanceStatsForCourseIds(@Param("courseIds") List<Long> courseIds);
 }
+
 
 

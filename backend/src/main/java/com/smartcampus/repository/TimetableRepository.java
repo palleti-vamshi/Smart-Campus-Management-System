@@ -123,6 +123,20 @@ public interface TimetableRepository extends JpaRepository<Timetable, Long> {
             @Param("semester") Integer semester,
             @Param("academicYear") String academicYear,
             Pageable pageable);
+
+    @Query("SELECT COUNT(t) FROM Timetable t WHERE UPPER(t.dayOfWeek) = UPPER(:dayOfWeek)")
+    long countByDayOfWeekIgnoreCase(@Param("dayOfWeek") String dayOfWeek);
+
+    @Query("SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND UPPER(t.dayOfWeek) = UPPER(:dayOfWeek) ORDER BY t.startTime ASC")
+    List<Timetable> findByFacultyAndDayOfWeek(@Param("facultyId") Long facultyId, @Param("dayOfWeek") String dayOfWeek);
+
+    @Query("SELECT t FROM Timetable t WHERE t.program.programId = :programId AND t.semester = :semester AND UPPER(t.dayOfWeek) = UPPER(:dayOfWeek) ORDER BY t.startTime ASC")
+    List<Timetable> findByProgramAndSemesterAndDayOfWeek(
+            @Param("programId") Long programId,
+            @Param("semester") Integer semester,
+            @Param("dayOfWeek") String dayOfWeek);
+
+    List<Timetable> findByProgram_ProgramIdAndSemester(Long programId, Integer semester);
 }
 
 

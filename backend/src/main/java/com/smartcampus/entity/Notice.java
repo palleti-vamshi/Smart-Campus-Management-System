@@ -4,6 +4,7 @@ import com.smartcampus.entity.enums.NoticeCategory;
 import com.smartcampus.entity.enums.NoticePriority;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -33,6 +34,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Notice {
 
     @Id

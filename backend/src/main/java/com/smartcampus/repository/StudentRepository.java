@@ -50,5 +50,14 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             @Param("section") String section,
             @Param("search") String search,
             Pageable pageable);
+
+    @Query("SELECT p.programId, p.programCode, p.programName, COUNT(s) " +
+           "FROM Program p LEFT JOIN Student s ON s.program.programId = p.programId " +
+           "GROUP BY p.programId, p.programCode, p.programName ORDER BY p.programName")
+    List<Object[]> countStudentsByProgram();
+
+    @Query("SELECT s.currentSemester, COUNT(s) FROM Student s GROUP BY s.currentSemester ORDER BY s.currentSemester")
+    List<Object[]> countStudentsBySemester();
 }
+
 

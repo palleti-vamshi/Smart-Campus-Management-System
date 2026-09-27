@@ -76,5 +76,22 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             @Param("semester") Integer semester,
             @Param("status") EnrollmentStatus status,
             Pageable pageable);
+
+    long countByStatus(EnrollmentStatus status);
+
+    @Query("SELECT p.programId, p.programCode, p.programName, COUNT(e) " +
+           "FROM Enrollment e JOIN e.student s JOIN s.program p " +
+           "GROUP BY p.programId, p.programCode, p.programName ORDER BY p.programName")
+    List<Object[]> countEnrollmentsByProgram();
+
+    @Query("SELECT e.course.courseId, e.course.courseCode, e.course.courseName, COUNT(e) " +
+           "FROM Enrollment e WHERE e.course.courseId IN :courseIds AND e.status = com.smartcampus.entity.enums.EnrollmentStatus.ACTIVE " +
+           "GROUP BY e.course.courseId, e.course.courseCode, e.course.courseName ORDER BY e.course.courseName")
+    List<Object[]> countActiveEnrollmentsForCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    @Query("SELECT COUNT(DISTINCT e.student.studentId) FROM Enrollment e " +
+           "WHERE e.course.courseId IN :courseIds AND e.status = com.smartcampus.entity.enums.EnrollmentStatus.ACTIVE")
+    long countDistinctStudentsForCourseIds(@Param("courseIds") List<Long> courseIds);
 }
+
 
