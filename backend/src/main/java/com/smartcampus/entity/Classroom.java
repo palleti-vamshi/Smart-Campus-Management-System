@@ -3,6 +3,7 @@ package com.smartcampus.entity;
 import com.smartcampus.entity.enums.RoomType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,6 +21,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Classroom {
 
     @Id
@@ -40,6 +42,7 @@ public class Classroom {
     @Column(name = "capacity", nullable = false)
     private Integer capacity;
 
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 }
