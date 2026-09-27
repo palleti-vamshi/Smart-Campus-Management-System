@@ -125,6 +125,7 @@ Relationship: `Department 1 ────< Programs`
 | `gender` | VARCHAR(20) | NULL |
 | `admission_year` | INT | NOT NULL |
 | `current_semester` | INT | NOT NULL |
+| `section` | VARCHAR(10) | NOT NULL |
 | `phone` | VARCHAR(20) | NULL |
 | `created_at` | TIMESTAMP | NOT NULL |
 
