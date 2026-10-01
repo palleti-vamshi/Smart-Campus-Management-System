@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { documentService } from '../../services/documentService';
+import { documentService, formatDocumentName } from '../../services/documentService';
 import PageHeader from '../../components/common/PageHeader';
 import Table from '../../components/common/Table';
 import Pagination from '../../components/common/Pagination';
@@ -103,17 +103,30 @@ export const AdminDocumentsPage = () => {
   const handleDownload = async (requestId, requestNumber) => {
     try {
       const response = await documentService.downloadAdminDocument(requestId);
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/pdf' });
+      let filename = `certificate-${requestNumber || requestId}.pdf`;
+      const disposition = response.headers?.['content-disposition'] || response.headers?.get?.('content-disposition');
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) {
+          filename = match[1].replace(/['"]/g, '').trim();
+        }
+      }
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
+      a.style.display = 'none';
       a.href = url;
-      a.download = `certificate-${requestNumber || requestId}.pdf`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        if (document.body.contains(a)) {
+          document.body.removeChild(a);
+        }
+      }, 2500);
     } catch (err) {
-      alert(err.response?.data?.message || 'Certificate download failed.');
+      alert(err.response?.data?.message || err.message || 'Certificate download failed.');
     }
   };
 
@@ -143,7 +156,7 @@ export const AdminDocumentsPage = () => {
   const columns = [
     { header: 'Request ID', accessor: 'requestNumber', cellClassName: 'font-mono text-xs font-semibold' },
     { header: 'Student', render: (r) => `${r.studentName} (${r.studentRollNumber})` },
-    { header: 'Document', accessor: 'documentTypeName' },
+    { header: 'Document', accessor: 'documentTypeName', render: (r) => formatDocumentName(r.documentTypeName) },
     { header: 'Purpose', accessor: 'purpose' },
     { header: 'Submitted', accessor: 'createdAt', render: (r) => r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-' },
     { header: 'Status', accessor: 'status', render: (r) => <StatusBadge status={r.status} /> },

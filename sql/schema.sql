@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS courses (
     updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     CONSTRAINT uk_courses_code      UNIQUE (course_code),
-    CONSTRAINT chk_courses_credits  CHECK (credits > 0),
+    CONSTRAINT chk_courses_credits  CHECK (credits >= 0),
     CONSTRAINT chk_courses_type     CHECK (course_type IN ('THEORY', 'LAB', 'PROJECT', 'ELECTIVE')),
     CONSTRAINT fk_courses_program
         FOREIGN KEY (program_id) REFERENCES programs (program_id)
@@ -292,6 +292,7 @@ CREATE TABLE IF NOT EXISTS classrooms (
 CREATE TABLE IF NOT EXISTS timetable (
     timetable_id    BIGINT          AUTO_INCREMENT PRIMARY KEY,
     program_id      BIGINT          NOT NULL,
+    section         VARCHAR(10)     NOT NULL DEFAULT 'A',
     course_id       BIGINT          NOT NULL,
     faculty_id      BIGINT          NOT NULL,
     classroom_id    BIGINT          NOT NULL,
@@ -317,6 +318,7 @@ CREATE TABLE IF NOT EXISTS timetable (
 );
 
 CREATE INDEX idx_timetable_program   ON timetable (program_id);
+CREATE INDEX idx_timetable_section   ON timetable (section);
 CREATE INDEX idx_timetable_faculty   ON timetable (faculty_id);
 CREATE INDEX idx_timetable_classroom ON timetable (classroom_id);
 CREATE INDEX idx_timetable_day_time  ON timetable (day_of_week, start_time);

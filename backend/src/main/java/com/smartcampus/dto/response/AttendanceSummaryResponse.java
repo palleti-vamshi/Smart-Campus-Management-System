@@ -1,5 +1,6 @@
 package com.smartcampus.dto.response;
 
+import com.smartcampus.entity.enums.CourseType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,6 +18,7 @@ public class AttendanceSummaryResponse {
     private Long courseId;
     private String courseCode;
     private String courseName;
+    private String courseType;
     private Long totalClasses;
     private Long presentCount;
     private Long absentCount;
@@ -27,6 +29,7 @@ public class AttendanceSummaryResponse {
             Long courseId,
             String courseCode,
             String courseName,
+            CourseType courseType,
             Long totalClasses,
             Long presentCount,
             Long absentCount,
@@ -34,6 +37,7 @@ public class AttendanceSummaryResponse {
         this.courseId = courseId;
         this.courseCode = courseCode;
         this.courseName = courseName;
+        this.courseType = courseType != null ? courseType.name() : null;
         this.totalClasses = totalClasses != null ? totalClasses : 0L;
         this.presentCount = presentCount != null ? presentCount : 0L;
         this.absentCount = absentCount != null ? absentCount : 0L;
@@ -45,5 +49,16 @@ public class AttendanceSummaryResponse {
         } else {
             this.attendancePercentage = 0.0;
         }
+    }
+
+    public AttendanceSummaryResponse(
+            Long courseId,
+            String courseCode,
+            String courseName,
+            Long totalClasses,
+            Long presentCount,
+            Long absentCount,
+            Long lateCount) {
+        this(courseId, courseCode, courseName, (CourseType) null, totalClasses, presentCount, absentCount, lateCount);
     }
 }

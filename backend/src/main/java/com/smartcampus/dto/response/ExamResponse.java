@@ -25,6 +25,7 @@ public class ExamResponse {
     private ExamType examType;
     private LocalDate examDate;
     private BigDecimal maxMarks;
+    private String courseType;
     private LocalDateTime createdAt;
 
     public static ExamResponse fromEntity(Exam exam) {
@@ -35,10 +36,12 @@ public class ExamResponse {
         Long cId = null;
         String cCode = null;
         String cName = null;
+        String cType = null;
         if (exam.getCourse() != null) {
             cId = exam.getCourse().getCourseId();
             cCode = exam.getCourse().getCourseCode();
             cName = exam.getCourse().getCourseName();
+            cType = exam.getCourse().getCourseType() != null ? exam.getCourse().getCourseType().name() : null;
         }
 
         return ExamResponse.builder()
@@ -46,6 +49,7 @@ public class ExamResponse {
                 .courseId(cId)
                 .courseCode(cCode)
                 .courseName(cName)
+                .courseType(cType)
                 .examName(exam.getExamName())
                 .examType(exam.getExamType())
                 .examDate(exam.getExamDate())

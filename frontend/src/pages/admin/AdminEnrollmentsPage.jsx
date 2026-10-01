@@ -49,10 +49,10 @@ export const AdminEnrollmentsPage = () => {
   useEffect(() => {
     Promise.all([
       courseService.getCourses({ size: 100 }),
-      studentService.getStudents({ size: 100 }),
+      studentService.getStudents({ size: 500 }),
     ]).then(([cRes, sRes]) => {
-      setCourses(cRes.data?.content || []);
-      setStudents(sRes.data?.content || []);
+      setCourses(cRes?.data?.content || cRes?.data || []);
+      setStudents(sRes?.data?.content || sRes?.data || []);
     }).catch(() => {});
   }, []);
 

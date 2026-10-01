@@ -52,18 +52,39 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             Pageable pageable);
 
     @Query("SELECT e FROM Enrollment e WHERE " +
-           "e.course.faculty.facultyId = :facultyId AND " +
+           "(EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = e.course AND UPPER(t.section) = UPPER(e.student.section)) OR " +
+           " (e.course.faculty.facultyId = :facultyId AND NOT EXISTS (SELECT t2 FROM Timetable t2 WHERE t2.faculty.facultyId = :facultyId))) AND " +
            "(:courseId IS NULL OR e.course.courseId = :courseId) AND " +
+           "(:section IS NULL OR UPPER(e.student.section) = UPPER(:section)) AND " +
            "(:academicYear IS NULL OR e.academicYear = :academicYear) AND " +
            "(:semester IS NULL OR e.semester = :semester) AND " +
            "(:status IS NULL OR e.status = :status)")
-    Page<Enrollment> findWithFacultyFilters(
+    Page<Enrollment> findWithFacultyAndSectionFilters(
             @Param("facultyId") Long facultyId,
             @Param("courseId") Long courseId,
+            @Param("section") String section,
             @Param("academicYear") String academicYear,
             @Param("semester") Integer semester,
             @Param("status") EnrollmentStatus status,
             Pageable pageable);
+
+    @Query("SELECT COUNT(e) FROM Enrollment e WHERE " +
+           "e.course.courseId = :courseId AND " +
+           "UPPER(e.student.section) = UPPER(:section) AND " +
+           "e.status = com.smartcampus.entity.enums.EnrollmentStatus.ACTIVE")
+    long countActiveEnrollmentsForCourseAndSection(
+            @Param("courseId") Long courseId,
+            @Param("section") String section);
+
+    @Query("SELECT COUNT(DISTINCT e.student.studentId) FROM Enrollment e " +
+           "WHERE EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = e.course AND UPPER(t.section) = UPPER(e.student.section)) AND " +
+           "e.status = com.smartcampus.entity.enums.EnrollmentStatus.ACTIVE")
+    long countDistinctStudentsForFacultyScope(@Param("facultyId") Long facultyId);
+
+    @Query("SELECT COUNT(e) FROM Enrollment e " +
+           "WHERE EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = e.course AND UPPER(t.section) = UPPER(e.student.section)) AND " +
+           "e.status = com.smartcampus.entity.enums.EnrollmentStatus.ACTIVE")
+    long countActiveEnrollmentsForFacultyScope(@Param("facultyId") Long facultyId);
 
     @Query("SELECT e FROM Enrollment e WHERE " +
            "e.student.studentId = :studentId AND " +

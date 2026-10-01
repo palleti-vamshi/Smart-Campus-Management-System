@@ -21,11 +21,13 @@ public class TimetableResponse {
     private Long programId;
     private String programCode;
     private String programName;
+    private String section;
 
     // Course details
     private Long courseId;
     private String courseCode;
     private String courseName;
+    private String courseType;
 
     // Faculty details
     private Long facultyId;
@@ -65,9 +67,11 @@ public class TimetableResponse {
                 .programId(timetable.getProgram() != null ? timetable.getProgram().getProgramId() : null)
                 .programCode(timetable.getProgram() != null ? timetable.getProgram().getProgramCode() : null)
                 .programName(timetable.getProgram() != null ? timetable.getProgram().getProgramName() : null)
+                .section(timetable.getSection())
                 .courseId(timetable.getCourse() != null ? timetable.getCourse().getCourseId() : null)
                 .courseCode(timetable.getCourse() != null ? timetable.getCourse().getCourseCode() : null)
                 .courseName(timetable.getCourse() != null ? timetable.getCourse().getCourseName() : null)
+                .courseType(timetable.getCourse() != null && timetable.getCourse().getCourseType() != null ? timetable.getCourse().getCourseType().name() : null)
                 .facultyId(facultyId)
                 .facultyName(facultyFullName)
                 .facultyEmployeeCode(facultyEmpCode)

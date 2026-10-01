@@ -20,6 +20,9 @@ public class TimetableRequest {
     @NotNull(message = "Program ID is required")
     private Long programId;
 
+    @Size(max = 10, message = "Section must not exceed 10 characters")
+    private String section;
+
     @NotNull(message = "Course ID is required")
     private Long courseId;
 

@@ -8,7 +8,7 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import StatusBadge from '../../components/common/Badge';
+import StatusBadge, { CourseTypeBadge } from '../../components/common/Badge';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 
@@ -143,13 +143,30 @@ export const FacultyExamsPage = () => {
     }
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  };
+
   const columns = [
     { header: 'Course', accessor: 'courseName', render: (r) => `${r.courseName} (${r.courseCode})` },
+    {
+      header: 'Type',
+      accessor: 'courseType',
+      render: (r) => {
+        const cType = r.courseType || (r.courseName && r.courseName.toUpperCase().includes('LAB') ? 'LABORATORY' : 'THEORY');
+        return <CourseTypeBadge type={cType} />;
+      },
+    },
     { header: 'Exam Name', accessor: 'examName' },
-    { header: 'Type', accessor: 'examType', render: (r) => <StatusBadge status={r.examType} /> },
-    { header: 'Date', accessor: 'examDate' },
+    { header: 'Exam Type', accessor: 'examType', render: (r) => <StatusBadge status={r.examType} /> },
+    { header: 'Date', accessor: 'examDate', render: (r) => <span className="font-mono text-xs font-semibold">{formatDate(r.examDate)}</span> },
     { header: 'Time Slot', render: (r) => `${r.startTime || ''} - ${r.endTime || ''}` },
-    { header: 'Max Marks', accessor: 'maxMarks', align: 'right' },
+    { header: 'Max Marks', accessor: 'maxMarks', align: 'right', render: (r) => <span className="font-mono font-bold text-theme-primary">{r.maxMarks}</span> },
     {
       header: 'Actions',
       align: 'right',

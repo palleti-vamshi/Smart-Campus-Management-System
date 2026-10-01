@@ -145,4 +145,63 @@ public class CourseService {
 
         courseRepository.delete(course);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<CourseResponse> getCoursesForFaculty(Long userId) {
+        Faculty faculty = facultyRepository.findByUser_UserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Faculty profile not found for user ID: " + userId));
+
+        java.util.List<Object[]> timetableOfferings = timetableRepository.findDistinctCoursesAndSectionsByFaculty(faculty.getFacultyId());
+
+        if (!timetableOfferings.isEmpty()) {
+            java.util.List<CourseResponse> responses = new java.util.ArrayList<>();
+            String facultyFullName = (faculty.getFirstName() + (faculty.getLastName() != null ? " " + faculty.getLastName() : "")).trim();
+
+            for (Object[] row : timetableOfferings) {
+                Long courseId = (Long) row[0];
+                String courseCode = (String) row[1];
+                String courseName = (String) row[2];
+                com.smartcampus.entity.enums.CourseType courseType = (com.smartcampus.entity.enums.CourseType) row[3];
+                java.math.BigDecimal credits = row[4] != null ? java.math.BigDecimal.valueOf(((Number) row[4]).doubleValue()) : null;
+                Integer semester = (Integer) row[5];
+                String section = (String) row[6];
+
+                long enrolled = enrollmentRepository.countActiveEnrollmentsForCourseAndSection(courseId, section);
+
+                CourseResponse res = CourseResponse.builder()
+                        .courseId(courseId)
+                        .courseCode(courseCode)
+                        .courseName(courseName)
+                        .courseType(courseType)
+                        .credits(credits)
+                        .semester(semester)
+                        .section(section)
+                        .facultyId(faculty.getFacultyId())
+                        .facultyName(facultyFullName)
+                        .facultyEmployeeCode(faculty.getEmployeeCode())
+                        .enrolledStudents(enrolled)
+                        .build();
+
+                responses.add(res);
+            }
+            return responses;
+        }
+
+        java.util.List<Course> courses = courseRepository.findByFaculty_FacultyId(faculty.getFacultyId());
+        java.util.List<Long> courseIds = courses.stream().map(Course::getCourseId).toList();
+        java.util.Map<Long, Long> enrollmentCounts = new java.util.HashMap<>();
+        if (!courseIds.isEmpty()) {
+            for (Object[] row : enrollmentRepository.countActiveEnrollmentsForCourseIds(courseIds)) {
+                enrollmentCounts.put((Long) row[0], ((Number) row[3]).longValue());
+            }
+        }
+
+        return courses.stream()
+                .map(c -> {
+                    CourseResponse res = CourseResponse.fromEntity(c);
+                    res.setEnrolledStudents(enrollmentCounts.getOrDefault(c.getCourseId(), 0L));
+                    return res;
+                })
+                .toList();
+    }
 }

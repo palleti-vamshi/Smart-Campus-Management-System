@@ -56,17 +56,20 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
             Pageable pageable);
 
     @Query("SELECT a FROM Attendance a WHERE " +
-           "a.course.faculty.facultyId = :facultyId AND " +
+           "(EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = a.course AND UPPER(t.section) = UPPER(a.student.section)) OR " +
+           " (a.course.faculty.facultyId = :facultyId AND NOT EXISTS (SELECT t2 FROM Timetable t2 WHERE t2.faculty.facultyId = :facultyId))) AND " +
            "(:courseId IS NULL OR a.course.courseId = :courseId) AND " +
            "(:studentId IS NULL OR a.student.studentId = :studentId) AND " +
+           "(:section IS NULL OR UPPER(a.student.section) = UPPER(:section)) AND " +
            "(:attendanceDate IS NULL OR a.attendanceDate = :attendanceDate) AND " +
            "(:startDate IS NULL OR a.attendanceDate >= :startDate) AND " +
            "(:endDate IS NULL OR a.attendanceDate <= :endDate) AND " +
            "(:status IS NULL OR a.status = :status)")
-    Page<Attendance> findWithFacultyFilters(
+    Page<Attendance> findWithFacultyAndSectionFilters(
             @Param("facultyId") Long facultyId,
             @Param("courseId") Long courseId,
             @Param("studentId") Long studentId,
+            @Param("section") String section,
             @Param("attendanceDate") LocalDate attendanceDate,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
@@ -90,7 +93,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
             Pageable pageable);
 
     @Query("SELECT new com.smartcampus.dto.response.AttendanceSummaryResponse(" +
-           "e.course.courseId, e.course.courseCode, e.course.courseName, " +
+           "e.course.courseId, e.course.courseCode, e.course.courseName, e.course.courseType, " +
            "COUNT(a.attendanceId), " +
            "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.PRESENT THEN 1L ELSE 0L END), " +
            "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.ABSENT THEN 1L ELSE 0L END), " +
@@ -98,7 +101,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
            "FROM Enrollment e " +
            "LEFT JOIN Attendance a ON a.course = e.course AND a.student = e.student " +
            "WHERE e.student.studentId = :studentId " +
-           "GROUP BY e.course.courseId, e.course.courseCode, e.course.courseName")
+           "GROUP BY e.course.courseId, e.course.courseCode, e.course.courseName, e.course.courseType")
     List<AttendanceSummaryResponse> getStudentAttendanceSummary(@Param("studentId") Long studentId);
 
     @Query("SELECT COUNT(a), SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.PRESENT THEN 1L ELSE 0L END), " +
@@ -119,6 +122,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
            "FROM Attendance a WHERE a.course.courseId IN :courseIds " +
            "GROUP BY a.course.courseId, a.course.courseCode, a.course.courseName ORDER BY a.course.courseName")
     List<Object[]> getAttendanceStatsForCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    @Query("SELECT a.course.courseId, a.course.courseCode, a.course.courseName, COUNT(a), " +
+           "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.PRESENT THEN 1L ELSE 0L END), " +
+           "SUM(CASE WHEN a.status = com.smartcampus.entity.enums.AttendanceStatus.ABSENT THEN 1L ELSE 0L END) " +
+           "FROM Attendance a WHERE " +
+           "EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = a.course AND UPPER(t.section) = UPPER(a.student.section)) " +
+           "GROUP BY a.course.courseId, a.course.courseCode, a.course.courseName ORDER BY a.course.courseName")
+    List<Object[]> getAttendanceStatsForFacultyScope(@Param("facultyId") Long facultyId);
 }
 
 

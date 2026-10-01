@@ -31,6 +31,7 @@ export const AdminTimetablePage = () => {
   // Filter
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
 
   // Form Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,14 +39,15 @@ export const AdminTimetablePage = () => {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     programId: '',
+    section: 'A',
     courseId: '',
     facultyId: '',
     classroomId: '',
     dayOfWeek: 'MONDAY',
     startTime: '09:00',
     endTime: '10:00',
-    semester: 1,
-    academicYear: '2024-2025',
+    semester: 3,
+    academicYear: '2026-2027',
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -62,10 +64,10 @@ export const AdminTimetablePage = () => {
       facultyService.getFaculty({ size: 100 }),
       classroomService.getClassrooms({ size: 100 }),
     ]).then(([pRes, cRes, fRes, rRes]) => {
-      setPrograms(pRes.data || []);
-      setCourses(cRes.data?.content || []);
-      setFacultyList(fRes.data?.content || []);
-      setClassrooms(rRes.data?.content || []);
+      setPrograms(pRes?.data || []);
+      setCourses(cRes?.data?.content || cRes?.data || []);
+      setFacultyList(fRes?.data?.content || fRes?.data || []);
+      setClassrooms(rRes?.data?.content || rRes?.data || []);
     }).catch(() => {});
   }, []);
 
@@ -76,6 +78,7 @@ export const AdminTimetablePage = () => {
       const params = { page: pageNumber, size: 20 };
       if (selectedDay) params.dayOfWeek = selectedDay;
       if (selectedProgramId) params.programId = selectedProgramId;
+      if (selectedSection) params.section = selectedSection;
       const res = await timetableService.getAdminTimetable(params);
       const pageData = res.data;
       setEntries(pageData?.content || []);
@@ -91,21 +94,22 @@ export const AdminTimetablePage = () => {
 
   useEffect(() => {
     fetchTimetable(0);
-  }, [selectedDay, selectedProgramId]);
+  }, [selectedDay, selectedProgramId, selectedSection]);
 
   const handleOpenCreate = () => {
     setIsEditing(false);
     setEditingId(null);
     setFormData({
       programId: programs[0]?.programId ? String(programs[0].programId) : '',
+      section: 'A',
       courseId: courses[0]?.courseId ? String(courses[0].courseId) : '',
       facultyId: facultyList[0]?.facultyId ? String(facultyList[0].facultyId) : '',
       classroomId: classrooms[0]?.classroomId ? String(classrooms[0].classroomId) : '',
       dayOfWeek: 'MONDAY',
-      startTime: '09:00',
-      endTime: '10:00',
-      semester: 1,
-      academicYear: '2024-2025',
+      startTime: '10:00',
+      endTime: '11:00',
+      semester: 3,
+      academicYear: '2026-2027',
     });
     setFormError('');
     setIsModalOpen(true);
@@ -116,14 +120,15 @@ export const AdminTimetablePage = () => {
     setEditingId(t.timetableId);
     setFormData({
       programId: String(t.programId),
+      section: t.section || 'A',
       courseId: String(t.courseId),
       facultyId: String(t.facultyId),
       classroomId: String(t.classroomId),
       dayOfWeek: t.dayOfWeek,
-      startTime: t.startTime ? t.startTime.slice(0, 5) : '09:00',
-      endTime: t.endTime ? t.endTime.slice(0, 5) : '10:00',
-      semester: t.semester || 1,
-      academicYear: t.academicYear || '2024-2025',
+      startTime: t.startTime ? t.startTime.slice(0, 5) : '10:00',
+      endTime: t.endTime ? t.endTime.slice(0, 5) : '11:00',
+      semester: t.semester || 3,
+      academicYear: t.academicYear || '2026-2027',
     });
     setFormError('');
     setIsModalOpen(true);
@@ -136,6 +141,7 @@ export const AdminTimetablePage = () => {
     try {
       const payload = {
         programId: Number(formData.programId),
+        section: formData.section || 'A',
         courseId: Number(formData.courseId),
         facultyId: Number(formData.facultyId),
         classroomId: Number(formData.classroomId),
@@ -178,6 +184,7 @@ export const AdminTimetablePage = () => {
     { header: 'Time Slot', render: (r) => `${r.startTime} - ${r.endTime}` },
     { header: 'Course', accessor: 'courseName', render: (r) => `${r.courseName} (${r.courseCode})` },
     { header: 'Program', accessor: 'programCode', render: (r) => `${r.programCode} (Sem ${r.semester})` },
+    { header: 'Section', accessor: 'section', cellClassName: 'font-bold text-center text-theme-brand', render: (r) => `Sec ${r.section || 'A'}` },
     { header: 'Faculty', accessor: 'facultyName' },
     { header: 'Classroom', accessor: 'classroomRoomNumber', render: (r) => `${r.classroomRoomNumber || r.roomNumber} - ${r.classroomBuilding || r.building || ''}` },
     {
@@ -223,13 +230,26 @@ export const AdminTimetablePage = () => {
         </Button>
       </PageHeader>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between flex-wrap">
         <div className="w-full sm:w-64">
           <Select
             placeholder="All Programs"
             value={selectedProgramId}
             onChange={(e) => setSelectedProgramId(e.target.value)}
             options={programs.map((p) => ({ value: String(p.programId), label: `${p.code} - ${p.name}` }))}
+          />
+        </div>
+        <div className="w-full sm:w-40">
+          <Select
+            placeholder="All Sections"
+            value={selectedSection}
+            onChange={(e) => setSelectedSection(e.target.value)}
+            options={[
+              { value: '', label: 'All Sections' },
+              { value: 'A', label: 'Section A' },
+              { value: 'B', label: 'Section B' },
+              { value: 'C', label: 'Section C' },
+            ]}
           />
         </div>
         <div className="w-full sm:w-48">
@@ -273,7 +293,7 @@ export const AdminTimetablePage = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Select
               label="Program"
               name="programId"
@@ -281,6 +301,18 @@ export const AdminTimetablePage = () => {
               value={formData.programId}
               onChange={(e) => setFormData({ ...formData, programId: e.target.value })}
               options={programs.map((p) => ({ value: String(p.programId), label: p.code }))}
+            />
+            <Select
+              label="Section"
+              name="section"
+              required
+              value={formData.section}
+              onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+              options={[
+                { value: 'A', label: 'Section A' },
+                { value: 'B', label: 'Section B' },
+                { value: 'C', label: 'Section C' },
+              ]}
             />
             <Select
               label="Course"

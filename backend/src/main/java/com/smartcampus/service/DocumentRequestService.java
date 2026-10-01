@@ -149,6 +149,7 @@ public class DocumentRequestService {
     /**
      * Downloads an issued document for the authenticated student.
      */
+    @Transactional
     public Resource downloadStudentDocument(Long requestId, Long authenticatedUserId) {
         Student student = studentRepository.findByUser_UserId(authenticatedUserId)
                 .orElseThrow(() -> new AccessDeniedException("Authenticated user does not have a student profile"));
@@ -166,7 +167,20 @@ public class DocumentRequestService {
             throw new InvalidOperationException("Document has not been issued yet and cannot be downloaded");
         }
 
-        return certificateGeneratorService.loadAsResource(documentRequest.getDocumentPath());
+        String path = documentRequest.getDocumentPath();
+        if (path == null || !certificateGeneratorService.hasValidFile(path)) {
+            if (documentRequest.getVerificationCode() == null || documentRequest.getVerificationCode().isBlank()) {
+                documentRequest.setVerificationCode(generateUniqueVerificationCode());
+            }
+            if (documentRequest.getIssuedAt() == null || documentRequest.getIssuedAt().getYear() < 2026) {
+                documentRequest.setIssuedAt(LocalDateTime.now());
+            }
+            path = certificateGeneratorService.generateCertificate(documentRequest);
+            documentRequest.setDocumentPath(path);
+            documentRequestRepository.save(documentRequest);
+        }
+
+        return certificateGeneratorService.loadAsResource(path);
     }
 
     /**
@@ -203,6 +217,7 @@ public class DocumentRequestService {
     /**
      * Admin: Downloads any issued document.
      */
+    @Transactional
     public Resource downloadAdminDocument(Long requestId) {
         DocumentRequest documentRequest = documentRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document request not found with ID: " + requestId));
@@ -211,7 +226,20 @@ public class DocumentRequestService {
             throw new InvalidOperationException("Document has not been issued yet and cannot be downloaded");
         }
 
-        return certificateGeneratorService.loadAsResource(documentRequest.getDocumentPath());
+        String path = documentRequest.getDocumentPath();
+        if (path == null || !certificateGeneratorService.hasValidFile(path)) {
+            if (documentRequest.getVerificationCode() == null || documentRequest.getVerificationCode().isBlank()) {
+                documentRequest.setVerificationCode(generateUniqueVerificationCode());
+            }
+            if (documentRequest.getIssuedAt() == null || documentRequest.getIssuedAt().getYear() < 2026) {
+                documentRequest.setIssuedAt(LocalDateTime.now());
+            }
+            path = certificateGeneratorService.generateCertificate(documentRequest);
+            documentRequest.setDocumentPath(path);
+            documentRequestRepository.save(documentRequest);
+        }
+
+        return certificateGeneratorService.loadAsResource(path);
     }
 
     /**

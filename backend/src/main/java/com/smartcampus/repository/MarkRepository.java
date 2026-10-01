@@ -41,15 +41,18 @@ public interface MarkRepository extends JpaRepository<Mark, Long> {
             Pageable pageable);
 
     @Query("SELECT m FROM Mark m WHERE " +
-           "m.exam.course.faculty.facultyId = :facultyId AND " +
+           "(EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = m.exam.course AND UPPER(t.section) = UPPER(m.student.section)) OR " +
+           " (m.exam.course.faculty.facultyId = :facultyId AND NOT EXISTS (SELECT t2 FROM Timetable t2 WHERE t2.faculty.facultyId = :facultyId))) AND " +
            "(:examId IS NULL OR m.exam.examId = :examId) AND " +
            "(:studentId IS NULL OR m.student.studentId = :studentId) AND " +
-           "(:courseId IS NULL OR m.exam.course.courseId = :courseId)")
-    Page<Mark> findWithFacultyFilters(
+           "(:courseId IS NULL OR m.exam.course.courseId = :courseId) AND " +
+           "(:section IS NULL OR UPPER(m.student.section) = UPPER(:section))")
+    Page<Mark> findWithFacultyAndSectionFilters(
             @Param("facultyId") Long facultyId,
             @Param("examId") Long examId,
             @Param("studentId") Long studentId,
             @Param("courseId") Long courseId,
+            @Param("section") String section,
             Pageable pageable);
 
     @Query("SELECT m FROM Mark m WHERE " +
@@ -82,6 +85,16 @@ public interface MarkRepository extends JpaRepository<Mark, Long> {
 
     @Query("SELECT COUNT(m) FROM Mark m WHERE m.exam.course.courseId IN :courseIds")
     long countMarksForCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    @Query("SELECT c.courseId, c.courseCode, c.courseName, COUNT(m), AVG(m.marksObtained), MAX(m.marksObtained), MIN(m.marksObtained) " +
+           "FROM Mark m JOIN m.exam e JOIN e.course c " +
+           "WHERE EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = c AND UPPER(t.section) = UPPER(m.student.section)) " +
+           "GROUP BY c.courseId, c.courseCode, c.courseName ORDER BY c.courseName")
+    List<Object[]> getCoursePerformanceStatsForFacultyScope(@Param("facultyId") Long facultyId);
+
+    @Query("SELECT COUNT(m) FROM Mark m WHERE " +
+           "EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = m.exam.course AND UPPER(t.section) = UPPER(m.student.section))")
+    long countMarksForFacultyScope(@Param("facultyId") Long facultyId);
 }
 
 

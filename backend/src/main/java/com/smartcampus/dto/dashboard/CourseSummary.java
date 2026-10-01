@@ -19,4 +19,7 @@ public class CourseSummary {
     private Integer semester;
     private String programCode;
     private String facultyName;
+    private String courseType;
+    private String section;
+    private Long enrolledStudents;
 }

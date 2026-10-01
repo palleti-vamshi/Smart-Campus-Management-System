@@ -19,6 +19,9 @@ public class StudentResultResponse {
     private Long courseId;
     private String courseCode;
     private String courseName;
+    private String courseType;
+    private BigDecimal credits;
+    private Integer semester;
     private Integer totalExams;
     private BigDecimal totalMarksObtained;
     private BigDecimal totalMaxMarks;

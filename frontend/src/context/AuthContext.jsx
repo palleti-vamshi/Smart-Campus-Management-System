@@ -32,6 +32,11 @@ export const AuthProvider = ({ children }) => {
         username: authData.username,
         email: authData.email,
         role: authData.role,
+        firstName: authData.firstName,
+        lastName: authData.lastName,
+        fullName: authData.fullName,
+        employeeCode: authData.employeeCode,
+        rollNumber: authData.rollNumber,
       };
       setToken(authData.token);
       setUser(userObj);

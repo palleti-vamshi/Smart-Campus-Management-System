@@ -88,3 +88,7 @@ faculty-1.xlsx
 *.xlsx
 *.numbers
 
+
+backend/storage/
+frontend/dist/
+scratch/

@@ -19,6 +19,7 @@ public class StudentMarkItem {
     private String courseName;
     private String examName;
     private String examType;
+    private String courseType;
     private BigDecimal marksObtained;
     private BigDecimal maxMarks;
     private String grade;

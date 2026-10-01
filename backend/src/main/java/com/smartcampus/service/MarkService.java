@@ -1,5 +1,6 @@
 package com.smartcampus.service;
 
+import com.smartcampus.dto.request.BatchMarkRequest;
 import com.smartcampus.dto.request.MarkRequest;
 import com.smartcampus.dto.request.MarkUpdateRequest;
 import com.smartcampus.dto.response.MarkResponse;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +47,7 @@ public class MarkService {
     private final StudentRepository studentRepository;
     private final FacultyRepository facultyRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final com.smartcampus.repository.TimetableRepository timetableRepository;
 
     @Transactional
     public MarkResponse createMarkByAdmin(MarkRequest request) {
@@ -90,15 +93,19 @@ public class MarkService {
         Exam exam = examRepository.findById(request.getExamId())
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found with ID: " + request.getExamId()));
 
-        if (exam.getCourse().getFaculty() == null ||
-                !exam.getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId())) {
-            log.warn("Faculty ID {} attempted to record marks for exam ID {} in a course not taught by them",
-                    faculty.getFacultyId(), exam.getExamId());
-            throw new AccessDeniedException("You are not authorized to enter marks for an exam of a course you do not teach");
-        }
-
         Student student = studentRepository.findById(request.getStudentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + request.getStudentId()));
+
+        boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                faculty.getFacultyId(), exam.getCourse().getCourseId(), student.getSection()) ||
+                (exam.getCourse().getFaculty() != null && exam.getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                 !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+        if (!authorized) {
+            log.warn("Faculty ID {} attempted to record marks for student {} in Section {} unauthorized",
+                    faculty.getFacultyId(), student.getRollNumber(), student.getSection());
+            throw new AccessDeniedException("You are not authorized to enter marks for " + exam.getCourse().getCourseCode() + " in Section " + student.getSection());
+        }
 
         validateEnrollmentAndDuplicate(student, exam);
         validateMarksRange(request.getMarksObtained(), exam.getMaxMarks());
@@ -119,6 +126,68 @@ public class MarkService {
         return MarkResponse.fromEntity(saved);
     }
 
+    @Transactional
+    public List<MarkResponse> createOrUpdateBatchMarksByFaculty(Long userId, BatchMarkRequest request) {
+        Faculty faculty = facultyRepository.findByUser_UserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Faculty profile not found for user ID: " + userId));
+
+        Exam exam = examRepository.findById(request.getExamId())
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found with ID: " + request.getExamId()));
+
+        List<MarkResponse> results = new ArrayList<>();
+        for (BatchMarkRequest.StudentMarkItem item : request.getItems()) {
+            Student student = studentRepository.findById(item.getStudentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + item.getStudentId()));
+
+            boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                    faculty.getFacultyId(), exam.getCourse().getCourseId(), student.getSection()) ||
+                    (exam.getCourse().getFaculty() != null && exam.getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                     !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+            if (!authorized) {
+                log.warn("Faculty ID {} attempted to enter batch marks for student {} in Section {} unauthorized",
+                        faculty.getFacultyId(), student.getRollNumber(), student.getSection());
+                throw new AccessDeniedException("You are not authorized to enter marks for " + exam.getCourse().getCourseCode() + " in Section " + student.getSection());
+            }
+
+            if (!enrollmentRepository.existsByStudent_StudentIdAndCourse_CourseId(
+                    student.getStudentId(), exam.getCourse().getCourseId())) {
+                throw new ResourceConflictException(String.format(
+                        "Student '%s' is not enrolled in course '%s'",
+                        student.getRollNumber(), exam.getCourse().getCourseCode()));
+            }
+
+            validateMarksRange(item.getMarksObtained(), exam.getMaxMarks());
+            String grade = determineGrade(item.getGrade(), item.getMarksObtained(), exam.getMaxMarks());
+
+            Optional<Mark> existingOpt = markRepository.findByExam_ExamIdAndStudent_StudentId(
+                    exam.getExamId(), student.getStudentId());
+
+            Mark mark;
+            if (existingOpt.isPresent()) {
+                mark = existingOpt.get();
+                mark.setMarksObtained(item.getMarksObtained());
+                mark.setGrade(grade);
+                mark.setEnteredBy(faculty);
+            } else {
+                mark = Mark.builder()
+                        .exam(exam)
+                        .student(student)
+                        .marksObtained(item.getMarksObtained())
+                        .grade(grade)
+                        .enteredBy(faculty)
+                        .build();
+            }
+
+            Mark saved = markRepository.save(mark);
+            results.add(MarkResponse.fromEntity(saved));
+        }
+
+        log.info("Batch marks saved by faculty {} for exam {}: {} records",
+                faculty.getEmployeeCode(), exam.getExamName(), results.size());
+        return results;
+    }
+
     public PageResponse<MarkResponse> getMarksForAdmin(
             Long examId,
             Long studentId,
@@ -133,11 +202,12 @@ public class MarkService {
             Long examId,
             Long studentId,
             Long courseId,
+            String section,
             Pageable pageable) {
         Faculty faculty = facultyRepository.findByUser_UserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Faculty profile not found for user ID: " + userId));
 
-        Page<Mark> page = markRepository.findWithFacultyFilters(faculty.getFacultyId(), examId, studentId, courseId, pageable);
+        Page<Mark> page = markRepository.findWithFacultyAndSectionFilters(faculty.getFacultyId(), examId, studentId, courseId, section, pageable);
         return PageResponse.from(page.map(MarkResponse::fromEntity));
     }
 
@@ -185,11 +255,15 @@ public class MarkService {
         Mark mark = markRepository.findById(markId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mark not found with ID: " + markId));
 
-        if (mark.getExam().getCourse().getFaculty() == null ||
-                !mark.getExam().getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId())) {
-            log.warn("Faculty ID {} attempted to update mark ID {} not taught by them",
-                    faculty.getFacultyId(), markId);
-            throw new AccessDeniedException("You are not authorized to update marks for an exam of a course you do not teach");
+        boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                faculty.getFacultyId(), mark.getExam().getCourse().getCourseId(), mark.getStudent().getSection()) ||
+                (mark.getExam().getCourse().getFaculty() != null && mark.getExam().getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                 !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+        if (!authorized) {
+            log.warn("Faculty ID {} attempted to update mark ID {} in unauthorized Section {}",
+                    faculty.getFacultyId(), markId, mark.getStudent().getSection());
+            throw new AccessDeniedException("You are not authorized to update marks for Section " + mark.getStudent().getSection());
         }
 
         validateMarksRange(request.getMarksObtained(), mark.getExam().getMaxMarks());
@@ -220,11 +294,15 @@ public class MarkService {
         Mark mark = markRepository.findById(markId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mark not found with ID: " + markId));
 
-        if (mark.getExam().getCourse().getFaculty() == null ||
-                !mark.getExam().getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId())) {
-            log.warn("Faculty ID {} attempted to delete mark ID {} not taught by them",
-                    faculty.getFacultyId(), markId);
-            throw new AccessDeniedException("You are not authorized to delete marks for an exam of a course you do not teach");
+        boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                faculty.getFacultyId(), mark.getExam().getCourse().getCourseId(), mark.getStudent().getSection()) ||
+                (mark.getExam().getCourse().getFaculty() != null && mark.getExam().getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                 !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+        if (!authorized) {
+            log.warn("Faculty ID {} attempted to delete mark ID {} in unauthorized Section {}",
+                    faculty.getFacultyId(), markId, mark.getStudent().getSection());
+            throw new AccessDeniedException("You are not authorized to delete marks for Section " + mark.getStudent().getSection());
         }
 
         markRepository.delete(mark);
@@ -279,6 +357,9 @@ public class MarkService {
                     .courseId(course.getCourseId())
                     .courseCode(course.getCourseCode())
                     .courseName(course.getCourseName())
+                    .courseType(course.getCourseType() != null ? course.getCourseType().name() : null)
+                    .credits(course.getCredits())
+                    .semester(course.getSemester())
                     .totalExams(courseMarks.size())
                     .totalMarksObtained(totalObtained)
                     .totalMaxMarks(totalMax)

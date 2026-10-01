@@ -149,11 +149,13 @@ public class EnrollmentService {
     }
 
     /**
-     * Faculty view: read-only access to enrollments for courses taught by the authenticated faculty member.
+     * Faculty view: read-only access to enrollments for courses taught by the authenticated faculty member,
+     * strictly scoped by timetable course and section assignments.
      */
     public PageResponse<EnrollmentResponse> getEnrollmentsForFaculty(
             Long userId,
             Long courseId,
+            String section,
             String academicYear,
             Integer semester,
             EnrollmentStatus status,
@@ -161,10 +163,10 @@ public class EnrollmentService {
         Faculty faculty = facultyRepository.findByUser_UserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Faculty profile not found for authenticated user ID: " + userId));
 
-        log.debug("Faculty {} fetching enrollments for assigned courses", faculty.getEmployeeCode());
+        log.debug("Faculty {} fetching enrollments for assigned courses (section: {})", faculty.getEmployeeCode(), section);
 
-        Page<Enrollment> page = enrollmentRepository.findWithFacultyFilters(
-                faculty.getFacultyId(), courseId, academicYear, semester, status, pageable);
+        Page<Enrollment> page = enrollmentRepository.findWithFacultyAndSectionFilters(
+                faculty.getFacultyId(), courseId, section, academicYear, semester, status, pageable);
         return PageResponse.from(page.map(EnrollmentResponse::fromEntity));
     }
 

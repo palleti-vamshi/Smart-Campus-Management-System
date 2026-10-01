@@ -31,6 +31,7 @@ public class TimetableAdminController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<TimetableResponse>>> getTimetable(
             @RequestParam(required = false) Long programId,
+            @RequestParam(required = false) String section,
             @RequestParam(required = false) Long courseId,
             @RequestParam(required = false) Long facultyId,
             @RequestParam(required = false) Long classroomId,
@@ -39,7 +40,7 @@ public class TimetableAdminController {
             @RequestParam(required = false) String academicYear,
             @PageableDefault(size = 20, sort = "timetableId") Pageable pageable) {
         PageResponse<TimetableResponse> response = timetableService.getTimetableForAdmin(
-                programId, courseId, facultyId, classroomId, dayOfWeek, semester, academicYear, pageable);
+                programId, section, courseId, facultyId, classroomId, dayOfWeek, semester, academicYear, pageable);
         return ResponseEntity.ok(ApiResponse.success("Timetable retrieved successfully", response));
     }
 

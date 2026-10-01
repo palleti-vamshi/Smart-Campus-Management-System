@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
  * Response DTO for Course master data.
  */
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -31,6 +33,8 @@ public class CourseResponse {
     private BigDecimal credits;
     private Integer semester;
     private CourseType courseType;
+    private String section;
+    private Long enrolledStudents;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

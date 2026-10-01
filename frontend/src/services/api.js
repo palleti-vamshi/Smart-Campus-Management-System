@@ -34,14 +34,35 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
-    const message =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      'An unexpected error occurred';
-    
-    // Attach friendly message directly on error object
+    let message = error.response?.data?.message;
+
+    if (!error.response) {
+      message = 'Backend unavailable. Please check if the server is running.';
+    } else if (!message || message === 'An unexpected error occurred. Please try again later.') {
+      switch (error.response.status) {
+        case 401:
+          message = 'Session expired / invalid credentials';
+          break;
+        case 403:
+          message = 'Not authorized to access this resource';
+          break;
+        case 404:
+          message = 'Record not found';
+          break;
+        case 409:
+          message = 'Duplicate or conflict with existing record';
+          break;
+        case 500:
+          message = 'Server error occurred. Please try again.';
+          break;
+        default:
+          message = error.response?.data?.error || error.message || 'An unexpected error occurred';
+      }
+    }
+
+    // Attach friendly message directly on error object and normalize error.message
     error.friendlyMessage = message;
+    error.message = message;
     return Promise.reject(error);
   }
 );

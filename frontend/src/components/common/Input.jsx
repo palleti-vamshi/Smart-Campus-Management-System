@@ -18,13 +18,13 @@ export const Input = forwardRef(({
   return (
     <div className={`w-full ${className}`}>
       {label && (
-        <label htmlFor={name} className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+        <label htmlFor={name} className="block text-xs font-semibold uppercase tracking-wider text-theme-secondary mb-1.5">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
       <div className="relative rounded-lg shadow-sm">
         {Icon && (
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-theme-muted">
             <Icon className="h-4 w-4" />
           </div>
         )}
@@ -38,20 +38,20 @@ export const Input = forwardRef(({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className={`block w-full rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-200 ${
-            Icon ? 'pl-9' : 'pl-3'
-          } pr-3 py-2 ${
+          className={`block w-full rounded-lg border text-sm transition-all focus:outline-none focus:ring-2 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed ${
+            Icon ? 'pl-9' : 'pl-3.5'
+          } pr-3.5 py-2.5 ${
             error
-              ? 'border-red-400 focus:border-red-500 focus:ring-red-400 text-red-900 bg-red-50/20'
-              : 'border-slate-300 focus:border-primary-500 text-slate-900 bg-white'
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-400 text-red-900 bg-red-50/30 dark:bg-red-950/20 dark:text-red-300'
+              : 'border-theme bg-theme-surface text-theme-primary focus:border-theme-primary focus:ring-theme hover:border-slate-400'
           }`}
           {...props}
         />
       </div>
       {error ? (
-        <p className="mt-1 text-xs text-red-600 font-medium">{error}</p>
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>
       ) : helperText ? (
-        <p className="mt-1 text-xs text-slate-500">{helperText}</p>
+        <p className="mt-1 text-xs text-theme-muted">{helperText}</p>
       ) : null}
     </div>
   );

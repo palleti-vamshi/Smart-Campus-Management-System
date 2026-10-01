@@ -2,10 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-slate-50 text-slate-800 antialiased;
-  }
+/* ========================================================
+   SCMS THEME SYSTEM VARIABLES
+   ======================================================== */
+
+:root, [data-theme="cherry-cream"] {
+  --color-primary: #720921;
+  --color-primary-hover: #540618;
+  --color-primary-light: #FCE8EC;
+  --color-accent: #B82A45;
+  --color-accent-hover: #9E2239;
+  --bg-app: #FBF9F5;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFDF9;
+  --bg-surface-hover: #F8F4EE;
+  --bg-sidebar: #38040F;
+  --bg-sidebar-nav: #4B0615;
+  --bg-sidebar-active: #720921;
+  --text-primary: #1E1E24;
+  --text-secondary: #665C54;
+  --text-muted: #8E8278;
+  --border-color: #E8DFD5;
+  --border-subtle: #F2ECE4;
+  --ring-focus: rgba(114, 9, 33, 0.25);
+  --header-bg: #FFFFFF;
+}
+
+[data-theme="forest-white"] {
+  --color-primary: #14453D;
+  --color-primary-hover: #0E342E;
+  --color-primary-light: #E7F2EE;
+  --color-accent: #059669;
+  --color-accent-hover: #047857;
+  --bg-app: #F6F9F7;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-surface-hover: #EEF4F0;
+  --bg-sidebar: #0A241F;
+  --bg-sidebar-nav: #0F352E;
+  --bg-sidebar-active: #14453D;
+  --text-primary: #12221E;
+  --text-secondary: #4E635F;
+  --text-muted: #798E8A;
+  --border-color: #D3DFD9;
+  --border-subtle: #E6EEEA;
+  --ring-focus: rgba(20, 69, 61, 0.25);
+  --header-bg: #FFFFFF;
+}
+
+[data-theme="navy-gold"] {
+  --color-primary: #0F1D38;
+  --color-primary-hover: #091325;
+  --color-primary-light: #EBF0F8;
+  --color-accent: #C29B38;
+  --color-accent-hover: #A5822C;
+  --bg-app: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-surface-hover: #F1F5F9;
+  --bg-sidebar: #08101E;
+  --bg-sidebar-nav: #0D1A30;
+  --bg-sidebar-active: #152647;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --border-color: #E2E8F0;
+  --border-subtle: #EDF2F7;
+  --ring-focus: rgba(15, 29, 56, 0.25);
+  --header-bg: #FFFFFF;
+}
+
+
+/* ========================================================
+   GLOBAL BASE STYLING
+   ======================================================== */
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Custom scrollbars */
@@ -13,16 +89,67 @@
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: rgba(150, 150, 150, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.45);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+/* ========================================================
+   Theme utility classes — backgrounds
+   ======================================================== */
+.bg-theme-app { background-color: var(--bg-app); }
+.bg-theme-surface { background-color: var(--bg-surface); }
+.bg-theme-elevated { background-color: var(--bg-surface-elevated); }
+.bg-theme-sidebar { background-color: var(--bg-sidebar); }
+.bg-theme-primary { background-color: var(--color-primary); }
+.bg-theme-accent { background-color: var(--color-accent); }
+.bg-theme-primary-light { background-color: var(--color-primary-light); }
+
+/* Hover background variants */
+.hover\:bg-theme-primary-light:hover { background-color: var(--color-primary-light); }
+.hover\:bg-theme-elevated:hover { background-color: var(--bg-surface-elevated); }
+.hover\:bg-theme-surface:hover { background-color: var(--bg-surface); }
+
+/* ========================================================
+   Theme utility classes — text colors
+   ======================================================== */
+.text-theme-primary { color: var(--text-primary); }
+.text-theme-secondary { color: var(--text-secondary); }
+.text-theme-muted { color: var(--text-muted); }
+.text-theme-brand { color: var(--color-primary); }
+.text-theme-accent { color: var(--color-accent); }
+
+/* Hover text variants */
+.hover\:text-theme-primary:hover { color: var(--text-primary); }
+.hover\:text-theme-brand:hover { color: var(--color-primary); }
+
+/* ========================================================
+   Theme utility classes — borders
+   ======================================================== */
+.border-theme { border-color: var(--border-color); }
+.border-theme-subtle { border-color: var(--border-subtle); }
+.border-theme-primary { border-color: var(--color-primary); }
+
+/* Hover border variants */
+.hover\:border-theme-primary:hover { border-color: var(--color-primary); }
+.hover\:border-theme:hover { border-color: var(--border-color); }
+
+/* Focus border variants */
+.focus\:border-theme-primary:focus { border-color: var(--color-primary); }
+
+/* ========================================================
+   Theme utility classes — focus rings & shadows
+   ======================================================== */
+.ring-theme { --tw-ring-color: var(--ring-focus); }
+.focus\:ring-theme:focus { --tw-ring-color: var(--ring-focus); }
+
+/* shadow-xs is not in Tailwind v3; define it */
+.shadow-xs {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
 }

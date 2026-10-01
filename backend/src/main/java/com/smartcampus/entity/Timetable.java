@@ -24,6 +24,7 @@ import java.time.LocalTime;
 @Entity
 @Table(name = "timetable", indexes = {
         @Index(name = "idx_timetable_program", columnList = "program_id"),
+        @Index(name = "idx_timetable_section", columnList = "section"),
         @Index(name = "idx_timetable_faculty", columnList = "faculty_id"),
         @Index(name = "idx_timetable_classroom", columnList = "classroom_id"),
         @Index(name = "idx_timetable_day_time", columnList = "day_of_week, start_time")
@@ -43,6 +44,18 @@ public class Timetable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "program_id", nullable = false)
     private Program program;
+
+    @Builder.Default
+    @Column(name = "section", length = 10, nullable = false)
+    private String section = "A";
+
+    @jakarta.persistence.PrePersist
+    @jakarta.persistence.PreUpdate
+    public void ensureSection() {
+        if (this.section == null || this.section.trim().isEmpty()) {
+            this.section = "A";
+        }
+    }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)

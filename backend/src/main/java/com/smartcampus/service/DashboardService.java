@@ -228,29 +228,53 @@ public class DashboardService {
         LocalDate today = LocalDate.now();
         String todayDay = today.getDayOfWeek().name();
 
-        List<Course> assignedCourses = courseRepository.findByFaculty_FacultyId(faculty.getFacultyId());
-        List<CourseSummary> courseSummaries = assignedCourses.stream()
-                .map(this::mapToCourseSummary)
-                .toList();
-
-        List<Long> courseIds = assignedCourses.stream().map(Course::getCourseId).toList();
-
-        // 1. Enrollment Summary
+        List<Object[]> timetableOfferings = timetableRepository.findDistinctCoursesAndSectionsByFaculty(faculty.getFacultyId());
+        List<CourseSummary> courseSummaries = new ArrayList<>();
+        List<CourseEnrollmentSummary> enrollmentsByCourse = new ArrayList<>();
         long totalStudents = 0L;
         long totalEnrollments = 0L;
-        List<CourseEnrollmentSummary> enrollmentsByCourse = new ArrayList<>();
 
-        if (!courseIds.isEmpty()) {
-            totalStudents = enrollmentRepository.countDistinctStudentsForCourseIds(courseIds);
-            for (Object[] row : enrollmentRepository.countActiveEnrollmentsForCourseIds(courseIds)) {
-                long count = ((Number) row[3]).longValue();
+        if (!timetableOfferings.isEmpty()) {
+            totalStudents = enrollmentRepository.countDistinctStudentsForFacultyScope(faculty.getFacultyId());
+            for (Object[] row : timetableOfferings) {
+                Long cId = (Long) row[0];
+                String cCode = (String) row[1];
+                String cName = (String) row[2];
+                com.smartcampus.entity.enums.CourseType cType = (com.smartcampus.entity.enums.CourseType) row[3];
+                Double creds = row[4] != null ? ((Number) row[4]).doubleValue() : null;
+                Integer sem = (Integer) row[5];
+                String sec = (String) row[6];
+
+                long count = enrollmentRepository.countActiveEnrollmentsForCourseAndSection(cId, sec);
                 totalEnrollments += count;
+
+                courseSummaries.add(CourseSummary.builder()
+                        .courseId(cId)
+                        .courseCode(cCode)
+                        .courseName(cName)
+                        .courseType(cType != null ? cType.name() : "THEORY")
+                        .credits(creds)
+                        .semester(sem)
+                        .section(sec)
+                        .enrolledStudents(count)
+                        .build());
+
                 enrollmentsByCourse.add(CourseEnrollmentSummary.builder()
-                        .courseId((Long) row[0])
-                        .courseCode((String) row[1])
-                        .courseName((String) row[2])
+                        .courseId(cId)
+                        .courseCode(cCode)
+                        .courseName(cName + " (Sec " + sec + ")")
                         .enrollmentCount(count)
                         .build());
+            }
+        } else {
+            List<Course> assignedCourses = courseRepository.findByFaculty_FacultyId(faculty.getFacultyId());
+            List<Long> courseIds = assignedCourses.stream().map(Course::getCourseId).toList();
+            if (!courseIds.isEmpty()) {
+                totalStudents = enrollmentRepository.countDistinctStudentsForCourseIds(courseIds);
+                for (Course c : assignedCourses) {
+                    CourseSummary s = this.mapToCourseSummary(c);
+                    courseSummaries.add(s);
+                }
             }
         }
 
@@ -260,34 +284,33 @@ public class DashboardService {
                 .enrollmentsByCourse(enrollmentsByCourse)
                 .build();
 
-        // 2. Attendance Overview
+        // 2. Attendance Overview (Scoped to Faculty's assigned sections)
         long totalAtt = 0L;
         long presentAtt = 0L;
         long absentAtt = 0L;
         List<CourseAttendanceSummary> courseAttendance = new ArrayList<>();
 
-        if (!courseIds.isEmpty()) {
-            for (Object[] row : attendanceRepository.getAttendanceStatsForCourseIds(courseIds)) {
-                long tot = ((Number) row[3]).longValue();
-                long pres = row[4] != null ? ((Number) row[4]).longValue() : 0L;
-                long abs = row[5] != null ? ((Number) row[5]).longValue() : 0L;
+        for (Object[] row : attendanceRepository.getAttendanceStatsForFacultyScope(faculty.getFacultyId())) {
+            long tot = ((Number) row[3]).longValue();
+            long pres = row[4] != null ? ((Number) row[4]).longValue() : 0L;
+            long abs = row[5] != null ? ((Number) row[5]).longValue() : 0L;
 
-                totalAtt += tot;
-                presentAtt += pres;
-                absentAtt += abs;
+            totalAtt += tot;
+            presentAtt += pres;
+            absentAtt += abs;
 
-                Double pct = tot > 0 ? roundTwoDecimals(((double) pres / tot) * 100.0) : 0.0;
-                courseAttendance.add(CourseAttendanceSummary.builder()
-                        .courseId((Long) row[0])
-                        .courseCode((String) row[1])
-                        .courseName((String) row[2])
-                        .totalClasses(tot)
-                        .presentClasses(pres)
-                        .absentClasses(abs)
-                        .lateClasses(0L)
-                        .attendancePercentage(pct)
-                        .build());
-            }
+            Double pct = tot > 0 ? roundTwoDecimals(((double) pres / tot) * 100.0) : 0.0;
+            courseAttendance.add(CourseAttendanceSummary.builder()
+                    .courseId((Long) row[0])
+                    .courseCode((String) row[1])
+                    .courseName((String) row[2])
+                    .totalClasses(tot)
+                    .presentClasses(pres)
+                    .absentClasses(abs)
+                    .lateClasses(0L)
+                    .attendancePercentage(pct)
+                    .percentage(pct)
+                    .build());
         }
 
         Double overallAttPct = totalAtt > 0 ? roundTwoDecimals(((double) presentAtt / totalAtt) * 100.0) : 0.0;
@@ -302,37 +325,32 @@ public class DashboardService {
                 .byCourse(courseAttendance)
                 .build();
 
-        // 3. Exams
-        long totalExams = 0L;
+        // 3. Exams (Scoped to faculty teaching courses)
+        long totalExams = examRepository.countByFacultyScope(faculty.getFacultyId());
         List<UpcomingExamSummary> upcomingExams = new ArrayList<>();
-        if (!courseIds.isEmpty()) {
-            totalExams = examRepository.countByCourseIds(courseIds);
-            for (Exam e : examRepository.findUpcomingExamsForCourseIds(courseIds, today)) {
-                upcomingExams.add(mapToUpcomingExam(e));
-            }
+        for (Exam e : examRepository.findUpcomingExamsForFacultyScope(faculty.getFacultyId(), today)) {
+            upcomingExams.add(mapToUpcomingExam(e));
         }
 
         FacultyExamSummary examSummary = FacultyExamSummary.builder()
                 .totalExams(totalExams)
+                .totalUpcomingExams(upcomingExams.size())
                 .upcomingExams(upcomingExams)
                 .build();
 
-        // 4. Marks
-        long marksEntered = 0L;
+        // 4. Marks (Scoped to faculty teaching scope)
+        long marksEntered = markRepository.countMarksForFacultyScope(faculty.getFacultyId());
         List<CoursePerformanceSummary> coursePerformance = new ArrayList<>();
-        if (!courseIds.isEmpty()) {
-            marksEntered = markRepository.countMarksForCourseIds(courseIds);
-            for (Object[] row : markRepository.getCoursePerformanceStatsForCourseIds(courseIds)) {
-                coursePerformance.add(CoursePerformanceSummary.builder()
-                        .courseId((Long) row[0])
-                        .courseCode((String) row[1])
-                        .courseName((String) row[2])
-                        .marksCount(((Number) row[3]).longValue())
-                        .averageMarks(row[4] != null ? roundTwoDecimals(((Number) row[4]).doubleValue()) : 0.0)
-                        .highestMark(row[5] != null ? roundTwoDecimals(((Number) row[5]).doubleValue()) : 0.0)
-                        .lowestMark(row[6] != null ? roundTwoDecimals(((Number) row[6]).doubleValue()) : 0.0)
-                        .build());
-            }
+        for (Object[] row : markRepository.getCoursePerformanceStatsForFacultyScope(faculty.getFacultyId())) {
+            coursePerformance.add(CoursePerformanceSummary.builder()
+                    .courseId((Long) row[0])
+                    .courseCode((String) row[1])
+                    .courseName((String) row[2])
+                    .marksCount(((Number) row[3]).longValue())
+                    .averageMarks(row[4] != null ? roundTwoDecimals(((Number) row[4]).doubleValue()) : 0.0)
+                    .highestMark(row[5] != null ? roundTwoDecimals(((Number) row[5]).doubleValue()) : 0.0)
+                    .lowestMark(row[6] != null ? roundTwoDecimals(((Number) row[6]).doubleValue()) : 0.0)
+                    .build());
         }
 
         FacultyMarksSummary marksSummary = FacultyMarksSummary.builder()
@@ -371,7 +389,7 @@ public class DashboardService {
                 .employeeCode(faculty.getEmployeeCode())
                 .designation(faculty.getDesignation())
                 .departmentName(deptName)
-                .totalAssignedCourses(assignedCourses.size())
+                .totalAssignedCourses(courseSummaries.size())
                 .assignedCourses(courseSummaries)
                 .studentEnrollmentSummary(studentEnrollmentSummary)
                 .attendanceOverview(attendanceOverview)
@@ -416,7 +434,24 @@ public class DashboardService {
                 .admissionYear(student.getAdmissionYear())
                 .build();
 
-        // 2. Attendance Summary
+        // 2. Enrolled Courses
+        List<Enrollment> enrollments = enrollmentRepository.findByStudent_StudentId(student.getStudentId());
+        List<CourseSummary> enrolledCourses = enrollments.stream()
+                .map(e -> mapToCourseSummary(e.getCourse()))
+                .toList();
+
+        List<Long> enrolledCourseIds = enrollments.stream()
+                .map(e -> e.getCourse().getCourseId())
+                .toList();
+
+        Map<Long, Enrollment> enrollmentMap = new HashMap<>();
+        for (Enrollment e : enrollments) {
+            if (e.getCourse() != null) {
+                enrollmentMap.put(e.getCourse().getCourseId(), e);
+            }
+        }
+
+        // 3. Attendance Summary
         List<AttendanceSummaryResponse> summaries = attendanceRepository.getStudentAttendanceSummary(student.getStudentId());
         long totalClasses = 0L;
         long presentClasses = 0L;
@@ -430,10 +465,21 @@ public class DashboardService {
             absentClasses += s.getAbsentCount();
             lateClasses += s.getLateCount();
 
+            Enrollment enr = enrollmentMap.get(s.getCourseId());
+            Double creds = (enr != null && enr.getCourse() != null && enr.getCourse().getCredits() != null) 
+                    ? enr.getCourse().getCredits().doubleValue() 
+                    : null;
+            String facName = (enr != null && enr.getCourse() != null && enr.getCourse().getFaculty() != null)
+                    ? (enr.getCourse().getFaculty().getFirstName() + " " + (enr.getCourse().getFaculty().getLastName() != null ? enr.getCourse().getFaculty().getLastName() : "")).trim()
+                    : null;
+
             courseAttendance.add(CourseAttendanceSummary.builder()
                     .courseId(s.getCourseId())
                     .courseCode(s.getCourseCode())
                     .courseName(s.getCourseName())
+                    .courseType(s.getCourseType())
+                    .credits(creds)
+                    .facultyName(facName)
                     .totalClasses(s.getTotalClasses())
                     .presentClasses(s.getPresentCount())
                     .absentClasses(s.getAbsentCount())
@@ -455,16 +501,6 @@ public class DashboardService {
                 .byProgram(new ArrayList<>())
                 .byCourse(courseAttendance)
                 .build();
-
-        // 3. Enrolled Courses
-        List<Enrollment> enrollments = enrollmentRepository.findByStudent_StudentId(student.getStudentId());
-        List<CourseSummary> enrolledCourses = enrollments.stream()
-                .map(e -> mapToCourseSummary(e.getCourse()))
-                .toList();
-
-        List<Long> enrolledCourseIds = enrollments.stream()
-                .map(e -> e.getCourse().getCourseId())
-                .toList();
 
         // 4. Exams (Upcoming & Past)
         List<UpcomingExamSummary> upcomingExams = new ArrayList<>();
@@ -497,6 +533,7 @@ public class DashboardService {
                     .courseName(c.getCourseName())
                     .examName(m.getExam().getExamName())
                     .examType(m.getExam().getExamType().name())
+                    .courseType(c.getCourseType() != null ? c.getCourseType().name() : null)
                     .marksObtained(m.getMarksObtained())
                     .maxMarks(m.getExam().getMaxMarks())
                     .grade(m.getGrade())
@@ -514,10 +551,12 @@ public class DashboardService {
         List<Timetable> weeklySchedule = new ArrayList<>();
         List<Timetable> todaySchedule = new ArrayList<>();
         if (student.getProgram() != null && student.getCurrentSemester() != null) {
-            weeklySchedule = timetableRepository.findByProgram_ProgramIdAndSemester(
-                    student.getProgram().getProgramId(), student.getCurrentSemester());
-            todaySchedule = timetableRepository.findByProgramAndSemesterAndDayOfWeek(
-                    student.getProgram().getProgramId(), student.getCurrentSemester(), todayDay);
+            String section = student.getSection() != null && !student.getSection().trim().isEmpty()
+                    ? student.getSection().trim().toUpperCase() : "A";
+            weeklySchedule = timetableRepository.findByProgramAndSectionAndSemester(
+                    student.getProgram().getProgramId(), section, student.getCurrentSemester());
+            todaySchedule = timetableRepository.findByProgramAndSectionAndSemesterAndDayOfWeek(
+                    student.getProgram().getProgramId(), section, student.getCurrentSemester(), todayDay);
         }
 
         TimetableSummary timetableSummary = TimetableSummary.builder()
@@ -614,6 +653,7 @@ public class DashboardService {
                 .courseId(e.getCourse() != null ? e.getCourse().getCourseId() : null)
                 .courseCode(e.getCourse() != null ? e.getCourse().getCourseCode() : "N/A")
                 .courseName(e.getCourse() != null ? e.getCourse().getCourseName() : "N/A")
+                .courseType(e.getCourse() != null && e.getCourse().getCourseType() != null ? e.getCourse().getCourseType().name() : null)
                 .examName(e.getExamName())
                 .examType(e.getExamType() != null ? e.getExamType().name() : "N/A")
                 .examDate(e.getExamDate())
@@ -626,10 +666,12 @@ public class DashboardService {
         if (c.getFaculty() != null) {
             facName = (c.getFaculty().getFirstName() + " " + (c.getFaculty().getLastName() != null ? c.getFaculty().getLastName() : "")).trim();
         }
+        String cType = c.getCourseType() != null ? c.getCourseType().name() : (c.getCourseName().toUpperCase().contains("LAB") ? "LABORATORY" : "THEORY");
         return CourseSummary.builder()
                 .courseId(c.getCourseId())
                 .courseCode(c.getCourseCode())
                 .courseName(c.getCourseName())
+                .courseType(cType)
                 .credits(c.getCredits() != null ? c.getCredits().doubleValue() : 0.0)
                 .semester(c.getSemester())
                 .programCode(c.getProgram() != null ? c.getProgram().getProgramCode() : "N/A")
@@ -645,6 +687,8 @@ public class DashboardService {
         String room = t.getClassroom() != null ? t.getClassroom().getRoomNumber() : "N/A";
         String bld = t.getClassroom() != null ? t.getClassroom().getBuilding() : "N/A";
 
+        String progCode = t.getProgram() != null ? t.getProgram().getProgramCode() : "N/A";
+
         return TimetableClassSummary.builder()
                 .timetableId(t.getTimetableId())
                 .courseCode(t.getCourse() != null ? t.getCourse().getCourseCode() : "N/A")
@@ -656,6 +700,8 @@ public class DashboardService {
                 .endTime(t.getEndTime())
                 .dayOfWeek(t.getDayOfWeek())
                 .semester(t.getSemester())
+                .section(t.getSection())
+                .programCode(progCode)
                 .build();
     }
 

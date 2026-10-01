@@ -37,9 +37,10 @@ public class FacultyMarkController {
             @RequestParam(required = false) Long examId,
             @RequestParam(required = false) Long studentId,
             @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) String section,
             @PageableDefault(size = 20, sort = "markId") Pageable pageable) {
         PageResponse<MarkResponse> response = markService.getMarksForFaculty(
-                userDetails.getUserId(), examId, studentId, courseId, pageable);
+                userDetails.getUserId(), examId, studentId, courseId, section, pageable);
         return ResponseEntity.ok(ApiResponse.success("Marks retrieved successfully", response));
     }
 
@@ -49,6 +50,14 @@ public class FacultyMarkController {
             @Valid @RequestBody MarkRequest request) {
         MarkResponse created = markService.createMarkByFaculty(userDetails.getUserId(), request);
         return new ResponseEntity<>(ApiResponse.success("Mark recorded successfully", created), HttpStatus.CREATED);
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<ApiResponse<java.util.List<MarkResponse>>> createBatchMarks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody com.smartcampus.dto.request.BatchMarkRequest request) {
+        java.util.List<MarkResponse> responses = markService.createOrUpdateBatchMarksByFaculty(userDetails.getUserId(), request);
+        return new ResponseEntity<>(ApiResponse.success("Batch marks recorded successfully", responses), HttpStatus.OK);
     }
 
     @PutMapping("/{id}")

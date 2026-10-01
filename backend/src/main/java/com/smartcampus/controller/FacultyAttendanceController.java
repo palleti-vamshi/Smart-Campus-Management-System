@@ -43,18 +43,27 @@ public class FacultyAttendanceController {
         return new ResponseEntity<>(ApiResponse.success("Attendance marked successfully", response), HttpStatus.CREATED);
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<ApiResponse<java.util.List<AttendanceResponse>>> recordBatchAttendance(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody com.smartcampus.dto.request.BatchAttendanceRequest request) {
+        java.util.List<AttendanceResponse> response = attendanceService.recordBatchAttendanceByFaculty(userDetails.getUserId(), request);
+        return new ResponseEntity<>(ApiResponse.success("Batch attendance saved successfully", response), HttpStatus.OK);
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<AttendanceResponse>>> getAttendance(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(required = false) Long courseId,
             @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false) String section,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate attendanceDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) AttendanceStatus status,
             @PageableDefault(size = 20, sort = "attendanceId") Pageable pageable) {
         PageResponse<AttendanceResponse> response = attendanceService.getAttendanceForFaculty(
-                userDetails.getUserId(), courseId, studentId, attendanceDate, startDate, endDate, status, pageable);
+                userDetails.getUserId(), courseId, studentId, section, attendanceDate, startDate, endDate, status, pageable);
         return ResponseEntity.ok(ApiResponse.success("Attendance records retrieved successfully", response));
     }
 

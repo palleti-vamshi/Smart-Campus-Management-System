@@ -44,6 +44,7 @@ public class TimetableService {
     @Transactional(readOnly = true)
     public PageResponse<TimetableResponse> getTimetableForAdmin(
             Long programId,
+            String section,
             Long courseId,
             Long facultyId,
             Long classroomId,
@@ -52,7 +53,7 @@ public class TimetableService {
             String academicYear,
             Pageable pageable) {
         Page<Timetable> page = timetableRepository.findWithAdminFilters(
-                programId, courseId, facultyId, classroomId, dayOfWeek, semester, academicYear, pageable);
+                programId, section, courseId, facultyId, classroomId, dayOfWeek, semester, academicYear, pageable);
         return PageResponse.from(page.map(TimetableResponse::fromEntity));
     }
 
@@ -82,9 +83,11 @@ public class TimetableService {
                 .orElseThrow(() -> new ResourceNotFoundException("Student profile not found for user ID: " + userId));
 
         Integer targetSemester = semester != null ? semester : student.getCurrentSemester();
+        String targetAcademicYear = (academicYear != null && !academicYear.trim().isEmpty())
+                ? academicYear.trim() : null;
 
         Page<Timetable> page = timetableRepository.findWithStudentFilters(
-                student.getProgram().getProgramId(), dayOfWeek, targetSemester, academicYear, pageable);
+                student.getProgram().getProgramId(), student.getSection(), dayOfWeek, targetSemester, targetAcademicYear, pageable);
         return PageResponse.from(page.map(TimetableResponse::fromEntity));
     }
 
@@ -124,8 +127,12 @@ public class TimetableService {
 
         validateConflicts(null, classroom, faculty, program, dayOfWeek, request);
 
+        String section = request.getSection() != null && !request.getSection().trim().isEmpty()
+                ? request.getSection().trim().toUpperCase() : "A";
+
         Timetable timetable = Timetable.builder()
                 .program(program)
+                .section(section)
                 .course(course)
                 .faculty(faculty)
                 .classroom(classroom)
@@ -137,8 +144,8 @@ public class TimetableService {
                 .build();
 
         Timetable saved = timetableRepository.save(timetable);
-        log.info("Timetable entry created: ID {}, Course {}, Day {}, Time {}-{}",
-                saved.getTimetableId(), course.getCourseCode(), dayOfWeek, request.getStartTime(), request.getEndTime());
+        log.info("Timetable entry created: ID {}, Course {}, Section {}, Day {}, Time {}-{}",
+                saved.getTimetableId(), course.getCourseCode(), section, dayOfWeek, request.getStartTime(), request.getEndTime());
         return TimetableResponse.fromEntity(saved);
     }
 
@@ -174,7 +181,11 @@ public class TimetableService {
 
         validateConflicts(id, classroom, faculty, program, dayOfWeek, request);
 
+        String section = request.getSection() != null && !request.getSection().trim().isEmpty()
+                ? request.getSection().trim().toUpperCase() : "A";
+
         timetable.setProgram(program);
+        timetable.setSection(section);
         timetable.setCourse(course);
         timetable.setFaculty(faculty);
         timetable.setClassroom(classroom);
@@ -261,9 +272,12 @@ public class TimetableService {
                     facultyName, faculty.getEmployeeCode(), dayOfWeek));
         }
 
-        // Rule 4: Prevent program scheduling conflicts
-        boolean programConflict = timetableRepository.hasProgramConflict(
+        // Rule 4: Prevent section scheduling conflicts within the program
+        String section = request.getSection() != null && !request.getSection().trim().isEmpty()
+                ? request.getSection().trim().toUpperCase() : "A";
+        boolean sectionConflict = timetableRepository.hasSectionConflict(
                 program.getProgramId(),
+                section,
                 dayOfWeek,
                 request.getSemester(),
                 academicYear,
@@ -271,10 +285,10 @@ public class TimetableService {
                 request.getEndTime(),
                 excludeId
         );
-        if (programConflict) {
+        if (sectionConflict) {
             throw new ResourceConflictException(String.format(
-                    "Program scheduling conflict: Program '%s' already has an overlapping class scheduled on %s",
-                    program.getProgramCode(), dayOfWeek));
+                    "Program scheduling conflict: Program '%s' Section '%s' already has an overlapping class scheduled on %s",
+                    program.getProgramCode(), section, dayOfWeek));
         }
     }
 }

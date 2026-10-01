@@ -16,6 +16,7 @@ import java.util.List;
 @Builder
 public class FacultyExamSummary {
     private long totalExams;
+    private long totalUpcomingExams;
 
     @Builder.Default
     private List<UpcomingExamSummary> upcomingExams = new ArrayList<>();

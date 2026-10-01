@@ -39,7 +39,8 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
             Pageable pageable);
 
     @Query("SELECT e FROM Exam e WHERE " +
-           "e.course.faculty.facultyId = :facultyId AND " +
+           "(EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = e.course) OR " +
+           " (e.course.faculty.facultyId = :facultyId AND NOT EXISTS (SELECT t2 FROM Timetable t2 WHERE t2.faculty.facultyId = :facultyId))) AND " +
            "(:courseId IS NULL OR e.course.courseId = :courseId) AND " +
            "(:examType IS NULL OR e.examType = :examType) AND " +
            "(:examDate IS NULL OR e.examDate = :examDate) AND " +
@@ -76,6 +77,12 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
 
     @Query("SELECT COUNT(e) FROM Exam e WHERE e.course.courseId IN :courseIds")
     long countByCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    @Query("SELECT COUNT(e) FROM Exam e WHERE EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = e.course)")
+    long countByFacultyScope(@Param("facultyId") Long facultyId);
+
+    @Query("SELECT e FROM Exam e WHERE EXISTS (SELECT t FROM Timetable t WHERE t.faculty.facultyId = :facultyId AND t.course = e.course) AND e.examDate >= :today ORDER BY e.examDate ASC")
+    List<Exam> findUpcomingExamsForFacultyScope(@Param("facultyId") Long facultyId, @Param("today") LocalDate today);
 }
 
 

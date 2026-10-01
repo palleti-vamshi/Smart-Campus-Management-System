@@ -36,7 +36,7 @@ public class StudentTimetableController {
             @RequestParam(required = false) String dayOfWeek,
             @RequestParam(required = false) Integer semester,
             @RequestParam(required = false) String academicYear,
-            @PageableDefault(size = 20, sort = "timetableId") Pageable pageable) {
+            @PageableDefault(size = 100, sort = "timetableId") Pageable pageable) {
         PageResponse<TimetableResponse> response = timetableService.getTimetableForStudent(
                 userDetails.getUserId(), dayOfWeek, semester, academicYear, pageable);
         return ResponseEntity.ok(ApiResponse.success("Student timetable retrieved successfully", response));

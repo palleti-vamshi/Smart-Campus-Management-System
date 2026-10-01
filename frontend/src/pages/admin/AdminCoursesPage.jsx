@@ -55,8 +55,8 @@ export const AdminCoursesPage = () => {
       programService.getAllPrograms(),
       facultyService.getFaculty({ size: 100 }),
     ]).then(([pRes, fRes]) => {
-      setPrograms(pRes.data || []);
-      setFacultyList(fRes.data?.content || []);
+      setPrograms(pRes?.data || []);
+      setFacultyList(fRes?.data?.content || fRes?.data || []);
     }).catch(() => {});
   }, []);
 

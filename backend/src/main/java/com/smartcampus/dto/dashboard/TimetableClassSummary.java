@@ -24,4 +24,6 @@ public class TimetableClassSummary {
     private LocalTime endTime;
     private String dayOfWeek;
     private Integer semester;
+    private String section;
+    private String programCode;
 }

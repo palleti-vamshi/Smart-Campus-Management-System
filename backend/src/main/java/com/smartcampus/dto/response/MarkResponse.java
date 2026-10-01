@@ -27,6 +27,9 @@ public class MarkResponse {
     private Long courseId;
     private String courseCode;
     private String courseName;
+    private String courseType;
+    private BigDecimal credits;
+    private Integer semester;
     private BigDecimal marksObtained;
     private BigDecimal maxMarks;
     private String grade;
@@ -47,6 +50,9 @@ public class MarkResponse {
         Long cId = null;
         String cCode = null;
         String cName = null;
+        String cType = null;
+        BigDecimal creds = null;
+        Integer sem = null;
         BigDecimal max = null;
         LocalDate eDate = null;
         if (mark.getExam() != null) {
@@ -59,6 +65,9 @@ public class MarkResponse {
                 cId = mark.getExam().getCourse().getCourseId();
                 cCode = mark.getExam().getCourse().getCourseCode();
                 cName = mark.getExam().getCourse().getCourseName();
+                cType = mark.getExam().getCourse().getCourseType() != null ? mark.getExam().getCourse().getCourseType().name() : null;
+                creds = mark.getExam().getCourse().getCredits();
+                sem = mark.getExam().getCourse().getSemester();
             }
         }
 
@@ -93,6 +102,9 @@ public class MarkResponse {
                 .courseId(cId)
                 .courseCode(cCode)
                 .courseName(cName)
+                .courseType(cType)
+                .credits(creds)
+                .semester(sem)
                 .marksObtained(mark.getMarksObtained())
                 .maxMarks(max)
                 .grade(mark.getGrade())

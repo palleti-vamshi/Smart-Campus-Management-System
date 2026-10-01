@@ -2,6 +2,7 @@ package com.smartcampus.service;
 
 import com.smartcampus.dto.request.AttendanceRequest;
 import com.smartcampus.dto.request.AttendanceUpdateRequest;
+import com.smartcampus.dto.request.BatchAttendanceRequest;
 import com.smartcampus.dto.response.AttendanceResponse;
 import com.smartcampus.dto.response.AttendanceSummaryResponse;
 import com.smartcampus.dto.response.PageResponse;
@@ -23,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
+import java.util.ArrayList;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +43,7 @@ public class AttendanceService {
     private final CourseRepository courseRepository;
     private final FacultyRepository facultyRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final com.smartcampus.repository.TimetableRepository timetableRepository;
 
     /**
      * Faculty records attendance for a course they teach.
@@ -52,14 +56,19 @@ public class AttendanceService {
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with ID: " + request.getCourseId()));
 
-        if (course.getFaculty() == null || !course.getFaculty().getFacultyId().equals(faculty.getFacultyId())) {
-            log.warn("Faculty ID {} attempted to record attendance for course ID {} not assigned to them",
-                    faculty.getFacultyId(), course.getCourseId());
-            throw new AccessDeniedException("You are not authorized to mark attendance for a course you do not teach");
-        }
-
         Student student = studentRepository.findById(request.getStudentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + request.getStudentId()));
+
+        boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                faculty.getFacultyId(), course.getCourseId(), student.getSection()) ||
+                (course.getFaculty() != null && course.getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                 !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+        if (!authorized) {
+            log.warn("Faculty ID {} attempted to record attendance for student {} in Section {} unauthorized",
+                    faculty.getFacultyId(), student.getRollNumber(), student.getSection());
+            throw new AccessDeniedException("You are not authorized to mark attendance for " + course.getCourseCode() + " in Section " + student.getSection());
+        }
 
         validateEnrollmentAndDuplicate(student, course, request.getAttendanceDate());
 
@@ -75,6 +84,59 @@ public class AttendanceService {
         log.info("Attendance marked by faculty {} for student {} in course {} on {}",
                 faculty.getEmployeeCode(), student.getRollNumber(), course.getCourseCode(), request.getAttendanceDate());
         return AttendanceResponse.fromEntity(saved);
+    }
+
+    /**
+     * Faculty records attendance in bulk for a class roster.
+     */
+    @Transactional
+    public List<AttendanceResponse> recordBatchAttendanceByFaculty(Long userId, BatchAttendanceRequest request) {
+        Faculty faculty = facultyRepository.findByUser_UserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Faculty profile not found for user ID: " + userId));
+
+        Course course = courseRepository.findById(request.getCourseId())
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with ID: " + request.getCourseId()));
+
+        List<AttendanceResponse> results = new ArrayList<>();
+        for (BatchAttendanceRequest.StudentAttendanceItem item : request.getRecords()) {
+            Student student = studentRepository.findById(item.getStudentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + item.getStudentId()));
+
+            boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                    faculty.getFacultyId(), course.getCourseId(), student.getSection()) ||
+                    (course.getFaculty() != null && course.getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                     !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+            if (!authorized) {
+                log.warn("Faculty ID {} attempted to record batch attendance for student {} in Section {} unauthorized",
+                        faculty.getFacultyId(), student.getRollNumber(), student.getSection());
+                throw new AccessDeniedException("You are not authorized to mark attendance for " + course.getCourseCode() + " in Section " + student.getSection());
+            }
+
+            Optional<Attendance> existingOpt = attendanceRepository.findByStudent_StudentIdAndCourse_CourseIdAndAttendanceDate(
+                    student.getStudentId(), course.getCourseId(), request.getAttendanceDate());
+
+            Attendance attendance;
+            if (existingOpt.isPresent()) {
+                attendance = existingOpt.get();
+                attendance.setStatus(item.getStatus());
+                attendance.setMarkedBy(faculty);
+            } else {
+                attendance = Attendance.builder()
+                        .student(student)
+                        .course(course)
+                        .attendanceDate(request.getAttendanceDate())
+                        .status(item.getStatus())
+                        .markedBy(faculty)
+                        .build();
+            }
+            Attendance saved = attendanceRepository.save(attendance);
+            results.add(AttendanceResponse.fromEntity(saved));
+        }
+
+        log.info("Batch attendance recorded by faculty {} for course {} on {}: {} records",
+                faculty.getEmployeeCode(), course.getCourseCode(), request.getAttendanceDate(), results.size());
+        return results;
     }
 
     /**
@@ -121,6 +183,7 @@ public class AttendanceService {
             Long userId,
             Long courseId,
             Long studentId,
+            String section,
             LocalDate attendanceDate,
             LocalDate startDate,
             LocalDate endDate,
@@ -131,8 +194,8 @@ public class AttendanceService {
 
         validateDateRange(startDate, endDate);
 
-        Page<Attendance> page = attendanceRepository.findWithFacultyFilters(
-                faculty.getFacultyId(), courseId, studentId, attendanceDate, startDate, endDate, status, pageable);
+        Page<Attendance> page = attendanceRepository.findWithFacultyAndSectionFilters(
+                faculty.getFacultyId(), courseId, studentId, section, attendanceDate, startDate, endDate, status, pageable);
         return PageResponse.from(page.map(AttendanceResponse::fromEntity));
     }
 
@@ -175,11 +238,15 @@ public class AttendanceService {
         Attendance attendance = attendanceRepository.findById(attendanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance not found with ID: " + attendanceId));
 
-        if (attendance.getCourse().getFaculty() == null ||
-                !attendance.getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId())) {
-            log.warn("Faculty ID {} attempted to update attendance ID {} for a course not taught by them",
-                    faculty.getFacultyId(), attendanceId);
-            throw new AccessDeniedException("You are not authorized to update attendance for a course you do not teach");
+        boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                faculty.getFacultyId(), attendance.getCourse().getCourseId(), attendance.getStudent().getSection()) ||
+                (attendance.getCourse().getFaculty() != null && attendance.getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                 !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+        if (!authorized) {
+            log.warn("Faculty ID {} attempted to update attendance ID {} for unauthorized section {}",
+                    faculty.getFacultyId(), attendanceId, attendance.getStudent().getSection());
+            throw new AccessDeniedException("You are not authorized to update attendance for a section you do not teach");
         }
 
         applyAttendanceUpdate(attendance, request);
@@ -211,11 +278,15 @@ public class AttendanceService {
         Attendance attendance = attendanceRepository.findById(attendanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance not found with ID: " + attendanceId));
 
-        if (attendance.getCourse().getFaculty() == null ||
-                !attendance.getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId())) {
-            log.warn("Faculty ID {} attempted to delete attendance ID {} for a course not taught by them",
-                    faculty.getFacultyId(), attendanceId);
-            throw new AccessDeniedException("You are not authorized to delete attendance for a course you do not teach");
+        boolean authorized = timetableRepository.existsByFacultyAndCourseAndSection(
+                faculty.getFacultyId(), attendance.getCourse().getCourseId(), attendance.getStudent().getSection()) ||
+                (attendance.getCourse().getFaculty() != null && attendance.getCourse().getFaculty().getFacultyId().equals(faculty.getFacultyId()) &&
+                 !timetableRepository.existsByFaculty_FacultyId(faculty.getFacultyId()));
+
+        if (!authorized) {
+            log.warn("Faculty ID {} attempted to delete attendance ID {} for unauthorized section {}",
+                    faculty.getFacultyId(), attendanceId, attendance.getStudent().getSection());
+            throw new AccessDeniedException("You are not authorized to delete attendance for a section you do not teach");
         }
 
         attendanceRepository.delete(attendance);

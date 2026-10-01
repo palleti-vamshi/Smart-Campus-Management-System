@@ -21,6 +21,7 @@ public class UpcomingExamSummary {
     private String courseName;
     private String examName;
     private String examType;
+    private String courseType;
     private LocalDate examDate;
     private BigDecimal maxMarks;
 }

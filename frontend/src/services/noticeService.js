@@ -3,17 +3,17 @@ import api from './api';
 export const noticeService = {
   getAdminNotices: async (params = {}) => {
     const response = await api.get('/api/admin/notices', { params });
-    return response.data.data;
+    return response.data;
   },
 
   createAdminNotice: async (data) => {
     const response = await api.post('/api/admin/notices', data);
-    return response.data.data;
+    return response.data;
   },
 
   updateAdminNotice: async (id, data) => {
     const response = await api.put(`/api/admin/notices/${id}`, data);
-    return response.data.data;
+    return response.data;
   },
 
   deleteAdminNotice: async (id) => {
@@ -23,17 +23,17 @@ export const noticeService = {
 
   getFacultyNotices: async (params = {}) => {
     const response = await api.get('/api/faculty/notices', { params });
-    return response.data.data;
+    return response.data;
   },
 
   createFacultyNotice: async (data) => {
     const response = await api.post('/api/faculty/notices', data);
-    return response.data.data;
+    return response.data;
   },
 
   updateFacultyNotice: async (id, data) => {
     const response = await api.put(`/api/faculty/notices/${id}`, data);
-    return response.data.data;
+    return response.data;
   },
 
   deleteFacultyNotice: async (id) => {
@@ -43,7 +43,12 @@ export const noticeService = {
 
   getStudentNotices: async (params = {}) => {
     const response = await api.get('/api/student/notices', { params });
-    return response.data.data;
+    return response.data;
+  },
+
+  getMyNotices: async (params = {}) => {
+    const response = await api.get('/api/student/notices', { params });
+    return response.data;
   },
 };
 

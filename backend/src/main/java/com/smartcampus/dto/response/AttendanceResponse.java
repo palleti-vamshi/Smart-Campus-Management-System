@@ -23,6 +23,7 @@ public class AttendanceResponse {
     private Long courseId;
     private String courseCode;
     private String courseName;
+    private String courseType;
     private LocalDate attendanceDate;
     private AttendanceStatus status;
     private Long markedByFacultyId;
@@ -48,10 +49,12 @@ public class AttendanceResponse {
         Long cId = null;
         String cCode = null;
         String cName = null;
+        String cType = null;
         if (attendance.getCourse() != null) {
             cId = attendance.getCourse().getCourseId();
             cCode = attendance.getCourse().getCourseCode();
             cName = attendance.getCourse().getCourseName();
+            cType = attendance.getCourse().getCourseType() != null ? attendance.getCourse().getCourseType().name() : null;
         }
 
         Long fId = null;
@@ -71,6 +74,7 @@ public class AttendanceResponse {
                 .courseId(cId)
                 .courseCode(cCode)
                 .courseName(cName)
+                .courseType(cType)
                 .attendanceDate(attendance.getAttendanceDate())
                 .status(attendance.getStatus())
                 .markedByFacultyId(fId)

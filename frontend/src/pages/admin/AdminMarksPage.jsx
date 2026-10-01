@@ -42,10 +42,10 @@ export const AdminMarksPage = () => {
   useEffect(() => {
     Promise.all([
       examService.getAdminExams({ size: 100 }),
-      studentService.getStudents({ size: 100 }),
+      studentService.getStudents({ size: 500 }),
     ]).then(([eRes, sRes]) => {
-      setExams(eRes.data?.content || []);
-      setStudents(sRes.data?.content || []);
+      setExams(eRes?.data?.content || eRes?.data || []);
+      setStudents(sRes?.data?.content || sRes?.data || []);
     }).catch(() => {});
   }, []);
 

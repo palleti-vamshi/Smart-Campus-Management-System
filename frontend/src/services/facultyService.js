@@ -1,24 +1,34 @@
 import api from './api';
 
 export const facultyService = {
+  getFaculty: async (params = {}) => {
+    const response = await api.get('/api/admin/faculty', { params });
+    return response.data;
+  },
+
   getFacultyList: async (params = {}) => {
     const response = await api.get('/api/admin/faculty', { params });
-    return response.data.data;
+    return response.data;
+  },
+
+  getAllFaculty: async (params = {}) => {
+    const response = await api.get('/api/admin/faculty', { params });
+    return response.data;
   },
 
   getFacultyById: async (id) => {
     const response = await api.get(`/api/admin/faculty/${id}`);
-    return response.data.data;
+    return response.data;
   },
 
   createFaculty: async (facultyData) => {
     const response = await api.post('/api/admin/faculty', facultyData);
-    return response.data.data;
+    return response.data;
   },
 
   updateFaculty: async (id, facultyData) => {
     const response = await api.put(`/api/admin/faculty/${id}`, facultyData);
-    return response.data.data;
+    return response.data;
   },
 
   deleteFaculty: async (id) => {
@@ -28,7 +38,7 @@ export const facultyService = {
 
   getMyProfile: async () => {
     const response = await api.get('/api/faculty/profile');
-    return response.data.data;
+    return response.data;
   },
 };
 

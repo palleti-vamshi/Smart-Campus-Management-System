@@ -35,12 +35,13 @@ public class FacultyEnrollmentController {
     public ResponseEntity<ApiResponse<PageResponse<EnrollmentResponse>>> getAssignedCourseEnrollments(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) String section,
             @RequestParam(required = false) String academicYear,
             @RequestParam(required = false) Integer semester,
             @RequestParam(required = false) EnrollmentStatus status,
             @PageableDefault(size = 20, sort = "enrollmentId") Pageable pageable) {
         PageResponse<EnrollmentResponse> response = enrollmentService.getEnrollmentsForFaculty(
-                userDetails.getUserId(), courseId, academicYear, semester, status, pageable);
+                userDetails.getUserId(), courseId, section, academicYear, semester, status, pageable);
         return ResponseEntity.ok(ApiResponse.success("Course enrollments retrieved successfully", response));
     }
 }

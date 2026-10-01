@@ -15,9 +15,13 @@ public class CourseAttendanceSummary {
     private Long courseId;
     private String courseCode;
     private String courseName;
+    private String courseType;
     private long totalClasses;
     private long presentClasses;
     private long absentClasses;
     private long lateClasses;
     private Double attendancePercentage;
+    private Double percentage;
+    private Double credits;
+    private String facultyName;
 }
